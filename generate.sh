@@ -104,15 +104,9 @@ gen_surge() {
     BEGIN { while ((getline l < nodesfile) > 0) nd[++n]=l }
     /^\[Proxy\]$/ { print; for (i=1;i<=n;i++) print nd[i]; print ""; inp=1; next }
     inp==1 { if ($0 ~ /^\[/) inp=0; else next }
-    /^AllServer[[:space:]]*=/ {
-      gsub(/policy-path=[^,]*, */, "")
-      gsub(/include-all-proxies=0/, "include-all-proxies=1")
-      if ($0 !~ /include-all-proxies=1/) sub(/=[[:space:]]*select,/, "= select, include-all-proxies=1,")
-      print; next
-    }
     { print }
   ' "$tpl" > "$out"
-  echo -e "  ${c_ok}🎉 Done!${c_o} Nodes inlined into [Proxy] ($count), AllServer switched"
+  echo -e "  ${c_ok}🎉 Done!${c_o} Nodes inlined into [Proxy] ($count)"
 }
 
 # Given a proxy-group line, apply its filter against the names[] array
