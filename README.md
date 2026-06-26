@@ -1,11 +1,9 @@
 # Stencil · Proxy Config Generator
 
 Pull the nodes from an airport subscription and inline them into your own
-client template, producing a ready-to-import config. One interactive command,
-no proxy-providers / remote includes — the nodes are written directly into the
-config so it always works offline of the provider.
+client template, producing a ready-to-import config.
 
-Supports **Surge** and **Stash**, and is easy to extend to more clients.
+Supports **Surge** and **Stash**. Three ways to use: CLI, Docker web UI, or static browser page.
 
 ---
 
@@ -18,34 +16,29 @@ No Python / Ruby or other runtime dependencies.
 
 ## Quick Start
 
+### CLI (bash)
+
 ```bash
 make config
+# or: bash generate.sh
 ```
 
-Then follow the four steps:
+Four steps: choose client → template → paste subscription URL → output filename.
+The generated config is written to `result/` (git-ignored).
 
+### Docker (web UI)
+
+```bash
+docker-compose up -d
+# open http://localhost:5000
 ```
-Step 1/4  Choose client      Surge / Stash        (↑/↓ to move, Enter to confirm)
-Step 2/4  Choose template    lists templates of the chosen client
-Step 3/4  Subscription URL   paste your airport subscription link
-Step 4/4  Output file name   press Enter for the default
-```
 
-The generated config is written to **`result/`** (your templates are never
-modified). Import it into the corresponding client.
+### Static Page (GitHub Pages)
 
-> `make help` shows the available commands. Running `make` with no target also
-> prints help.
+Visit `https://0xMario27.github.io/Stencil` — no install, runs in your browser.
+A Cloudflare Worker proxies subscription requests to avoid CORS.
 
-### Menu navigation
-
-In a real terminal the client/template menus support:
-
-- **↑ / ↓** (or `j` / `k`, `w` / `s`) to move the highlight
-- **Enter** to confirm
-- number keys **1-9** to jump directly
-
-When run non-interactively (piped input), the menus fall back to numbered input.
+> `make help` shows all CLI commands.
 
 ---
 
@@ -55,8 +48,8 @@ The node-import mechanism differs by client, handled automatically:
 
 | Client | Template | Ext | What the generator does |
 |--------|----------|-----|-------------------------|
-| **Surge** | `Surge/` | `.conf` | Fetch subscription → extract `[Proxy]` nodes → inline them into the template's `[Proxy]` → switch `AllServer` from `policy-path` to `include-all-proxies=1` |
-| **Stash** | `Stash/` | `.yaml` | Fetch subscription → get nodes → inline into `proxies:` (Flow Mapping) → remove `proxy-providers` → rewrite `use: [SF]` groups into explicit node lists (by each group's `filter`) |
+| **Surge** | `Surge/` | `.conf` | Fetch subscription → extract `[Proxy]` nodes → inline into template |
+| **Stash** | `Stash/` | `.yaml` | Fetch subscription → get nodes → inline into `proxies:` → remove `proxy-providers` → rewrite `use: [SF]` groups by filter |
 
 ### Stash node sources
 
@@ -93,15 +86,21 @@ case, use the subscription link/format your airport provides for that client.
 ## Project layout
 
 ```
-.
-├── Makefile          # make config / make help
-├── generate.sh       # interactive generator (all clients)
+├── Makefile              # CLI entry point
+├── generate.sh           # bash generator (Surge + Stash)
 ├── README.md
-├── Surge/            # Surge templates (*.conf)
+├── docker-compose.yml    # Docker web UI
+├── Surge/                # Surge templates (*.conf)
 │   └── Surge2026.conf
-├── Stash/            # Stash templates (*.yaml)
+├── Stash/                # Stash templates (*.yaml)
 │   └── StashProMax.yaml
-└── result/           # generated configs (git-ignored, contains real secrets)
+├── web/                  # Flask web app
+│   ├── app.py
+│   ├── Dockerfile
+│   └── templates/index.html
+├── _worker.js            # Cloudflare Worker (CORS proxy)
+├── wrangler.jsonc
+└── index.html            # static SPA (gh-pages branch)
 ```
 
 ---
