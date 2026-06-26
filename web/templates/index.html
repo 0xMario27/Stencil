@@ -171,11 +171,8 @@
           <span id="dl-text">Download Config</span>
         </button>
         <p id="dl-done" class="hidden text-brand-cta text-sm mt-3 font-medium">✓ Saved successfully</p>
-        <div id="import-actions" class="flex items-center justify-center gap-3 mt-4">
-          <button id="btn-copy" class="px-5 py-2 rounded-xl bg-brand-border/50 hover:bg-brand-border text-brand-text text-sm font-medium cursor-pointer transition-colors">📋 Copy</button>
-          <button id="btn-share" class="px-5 py-2 rounded-xl bg-brand-border/50 hover:bg-brand-border text-brand-text text-sm font-medium cursor-pointer transition-colors hidden">📤 Share</button>
-        </div>
-        <p id="copy-done" class="hidden text-brand-cta text-xs mt-2">Copied!</p>
+        <button id="btn-share" class="mt-4 px-8 py-3 rounded-xl bg-brand-surface border border-brand-cta/50 hover:border-brand-cta text-brand-cta font-semibold text-base cursor-pointer inline-flex items-center gap-2 transition-colors"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg><span id="share-text">Send to App</span></button>
+        <p id="share-done" class="hidden text-brand-cta text-xs mt-2">Sent! Open your app to import.</p>
       </div>
 
       <div class="flex justify-start mt-8">
@@ -323,16 +320,13 @@ $('#back-4').onclick = () => {
   $('#gen-loading').classList.add('hidden');
   $('#gen-error').classList.add('hidden');
   $('#gen-success').classList.add('hidden');
-  $('#copy-done').classList.add('hidden');
   enableBtn('#next-1', false);
   enableBtn('#next-2', false);
   showStep(1);
 };
 
 $('#btn-download').onclick = () => { triggerDownload(); };
-$('#btn-copy').onclick = () => { copyConfig(); };
-$('#btn-share').onclick = () => { shareConfig(); };
-if (navigator.share) $('#btn-share').classList.remove('hidden');
+$('#btn-share').onclick = () => { sendToApp(); };
 
 // ── Generate ──
 async function generateConfig() {
@@ -407,18 +401,16 @@ async function triggerDownload() {
   }
 }
 
-async function copyConfig() {
+async function sendToApp() {
   if (!state.blob) return;
-  const text = await state.blob.text();
-  await navigator.clipboard.writeText(text);
-  $('#copy-done').classList.remove('hidden');
-  setTimeout(() => $('#copy-done').classList.add('hidden'), 2000);
-}
-
-async function shareConfig() {
-  if (!state.blob || !navigator.share) return;
   const file = new File([state.blob], state.filename, { type: 'application/octet-stream' });
-  try { await navigator.share({ title: 'Stencil Config', files: [file] }); } catch(e) {}
+  if (navigator.share && navigator.canShare?.({ files: [file] })) {
+    try { await navigator.share({ files: [file] }); } catch(e) {}
+  } else {
+    await navigator.clipboard.writeText(await state.blob.text());
+  }
+  $('#share-done').classList.remove('hidden');
+  setTimeout(() => $('#share-done').classList.add('hidden'), 3000);
 }
 
 // ── Init ──
