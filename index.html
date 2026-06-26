@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stencil Config Generator</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}</style>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['IBM Plex Sans','system-ui','sans-serif'],mono:['JetBrains Mono','monospace']},colors:{brand:{bg:'#0F172A',surface:'#1E293B',border:'#334155',text:'#F8FAFC',muted:'#94A3B8',cta:'#22C55E','cta-hover':'#16A34A'}}}}}
+</script>
+</head>
+<body class="bg-brand-bg text-brand-text font-sans min-h-screen antialiased">
+
+<div class="fixed inset-0 -z-10"><div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-surface/40 via-brand-bg to-brand-bg"></div></div>
+
+<nav class="fixed top-4 left-4 right-4 z-50 max-w-6xl mx-auto">
+<div class="bg-brand-surface/80 backdrop-blur-xl border border-brand-border/50 rounded-2xl px-6 py-3 flex items-center justify-between shadow-lg">
+<div class="flex items-center gap-3"><div class="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-cta to-emerald-400 flex items-center justify-center"><svg class="w-5 h-5 text-brand-bg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg></div><span class="font-semibold text-lg">Stencil<span class="text-brand-cta">.</span></span></div>
+<div class="flex items-center gap-4 text-sm text-brand-muted">
+<a href="https://github.com/0xMario27/Stencil" target="_blank" class="hover:text-brand-text transition-colors duration-200 cursor-pointer inline-flex items-center gap-1.5"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>GitHub</a>
+<span id="proxy-status" class="text-xs cursor-pointer" title="Click to set CORS proxy">⚡ proxy</span>
+</div></div></nav>
+
+<main class="pt-28 pb-16 px-4 max-w-2xl mx-auto">
+
+<div class="text-center mb-12"><h1 class="text-4xl font-bold tracking-tight mb-3">Config Generator</h1><p class="text-brand-muted text-lg">Generate proxy configurations entirely in your browser</p></div>
+
+<div class="flex items-center justify-center gap-3 mb-12" id="steps-indicator">
+<div class="step-dot w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 bg-brand-cta text-brand-bg shadow-lg shadow-brand-cta/25" data-step="1">1</div><div class="w-8 h-0.5 bg-brand-border rounded-full" data-connector="1-2"></div>
+<div class="step-dot w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 bg-brand-border text-brand-muted" data-step="2">2</div><div class="w-8 h-0.5 bg-brand-border rounded-full" data-connector="2-3"></div>
+<div class="step-dot w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 bg-brand-border text-brand-muted" data-step="3">3</div><div class="w-8 h-0.5 bg-brand-border rounded-full" data-connector="3-4"></div>
+<div class="step-dot w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 bg-brand-border text-brand-muted" data-step="4">4</div>
+</div>
+
+<section id="step-1" class="bg-brand-surface border border-brand-border/50 rounded-2xl p-8 shadow-xl"><h2 class="text-xl font-semibold mb-2">Step 1: Choose Client</h2><p class="text-brand-muted mb-6">Select your proxy client platform</p><div id="client-options" class="grid grid-cols-2 gap-4 mb-8"></div><div class="flex justify-end"><button id="next-1" disabled class="px-6 py-2.5 rounded-xl bg-brand-border text-brand-muted cursor-not-allowed font-medium text-sm">Next →</button></div></section>
+
+<section id="step-2" class="hidden bg-brand-surface border border-brand-border/50 rounded-2xl p-8 shadow-xl"><h2 class="text-xl font-semibold mb-2">Step 2: Choose Template</h2><p class="text-brand-muted mb-6">Pick a configuration template</p><div id="template-options" class="space-y-3 mb-8"></div><div class="flex justify-between"><button id="back-2" class="px-6 py-2.5 rounded-xl bg-brand-border/50 hover:bg-brand-border text-brand-text font-medium text-sm cursor-pointer">← Back</button><button id="next-2" disabled class="px-6 py-2.5 rounded-xl bg-brand-border text-brand-muted cursor-not-allowed font-medium text-sm">Next →</button></div></section>
+
+<section id="step-3" class="hidden bg-brand-surface border border-brand-border/50 rounded-2xl p-8 shadow-xl"><h2 class="text-xl font-semibold mb-2">Step 3: Subscription &amp; Filename</h2><p class="text-brand-muted mb-6">Paste your subscription link and name the output file</p><div class="mb-6"><label for="sub-url" class="block text-sm font-medium text-brand-text mb-2">Subscription URL</label><input type="url" id="sub-url" placeholder="https://your-subscription-link.com/sub" autocomplete="off" class="w-full px-4 py-3 rounded-xl bg-brand-bg border border-brand-border focus:border-brand-cta focus:ring-1 focus:ring-brand-cta outline-none font-mono text-sm text-brand-text placeholder:text-brand-muted/50"></div><div class="mb-8"><label for="out-filename" class="block text-sm font-medium text-brand-text mb-2">Output Filename <span class="text-brand-muted font-normal">(optional)</span></label><input type="text" id="out-filename" placeholder="auto-generated" autocomplete="off" class="w-full px-4 py-3 rounded-xl bg-brand-bg border border-brand-border focus:border-brand-cta focus:ring-1 focus:ring-brand-cta outline-none font-mono text-sm text-brand-text placeholder:text-brand-muted/50"></div><div class="flex justify-between"><button id="back-3" class="px-6 py-2.5 rounded-xl bg-brand-border/50 hover:bg-brand-border text-brand-text font-medium text-sm cursor-pointer">← Back</button><button id="next-3" class="px-6 py-2.5 rounded-xl bg-brand-cta hover:bg-brand-cta-hover text-brand-bg font-semibold text-sm shadow-lg shadow-brand-cta/25 cursor-pointer">Generate →</button></div></section>
+
+<section id="step-4" class="hidden bg-brand-surface border border-brand-border/50 rounded-2xl p-8 shadow-xl"><h2 class="text-xl font-semibold mb-2">Step 4: Download</h2><p class="text-brand-muted mb-6">Your configuration is ready</p><div id="gen-loading" class="hidden text-center py-12"><div class="inline-block w-10 h-10 border-3 border-brand-border border-t-brand-cta rounded-full animate-spin mb-4"></div><p class="text-brand-muted">Generating...</p></div><div id="gen-error" class="hidden mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm"><div class="flex items-start gap-3"><svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span id="gen-error-msg"></span></div></div><div id="gen-success" class="hidden text-center py-8"><div class="w-16 h-16 mx-auto mb-4 rounded-full bg-brand-cta/10 flex items-center justify-center"><svg class="w-8 h-8 text-brand-cta" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div><p class="text-lg font-semibold mb-1">Config generated successfully!</p><p id="gen-filename" class="text-brand-muted text-sm mb-6"></p><button id="btn-download" class="px-8 py-3 rounded-xl bg-brand-cta hover:bg-brand-cta-hover text-brand-bg font-semibold text-base shadow-lg shadow-brand-cta/25 cursor-pointer inline-flex items-center gap-2"><svg id="dl-icon" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg><span id="dl-text">Download Config</span></button><p id="dl-done" class="hidden text-brand-cta text-sm mt-3 font-medium">✓ Saved successfully</p></div><div class="flex justify-start mt-8"><button id="back-4" class="px-6 py-2.5 rounded-xl bg-brand-border/50 hover:bg-brand-border text-brand-text font-medium text-sm cursor-pointer">← Start Over</button></div></section>
+
+</main>
+
+<footer class="text-center py-8 text-brand-muted text-sm"><p>Stencil Config Generator · <span class="font-mono text-xs text-brand-cta/70">static v2.0</span> · runs in your browser</p></footer>
+
+<!-- Proxy config modal -->
+<div id="proxy-modal" class="hidden fixed inset-0 z-[100] bg-brand-bg/80 backdrop-blur-sm flex items-center justify-center p-4">
+<div class="bg-brand-surface border border-brand-border rounded-2xl p-6 max-w-md w-full shadow-2xl">
+<h3 class="text-lg font-semibold mb-2">CORS Proxy URL</h3>
+<p class="text-brand-muted text-sm mb-4">Enter your Cloudflare Worker URL to proxy subscription requests.</p>
+<input type="url" id="proxy-url" placeholder="https://your-worker.workers.dev" class="w-full px-4 py-2.5 rounded-xl bg-brand-bg border border-brand-border focus:border-brand-cta outline-none text-sm text-brand-text mb-4">
+<div class="flex gap-3 justify-end"><button id="proxy-cancel" class="px-4 py-2 rounded-xl bg-brand-border/50 hover:bg-brand-border text-brand-text text-sm font-medium cursor-pointer">Cancel</button><button id="proxy-save" class="px-4 py-2 rounded-xl bg-brand-cta hover:bg-brand-cta-hover text-brand-bg text-sm font-semibold cursor-pointer">Save & Test</button></div>
+<div id="proxy-test-result" class="hidden mt-3 text-sm"></div>
+</div></div>
+
+<script>
+// ──────────────────────────────────────────────
+// CONFIG
+// ──────────────────────────────────────────────
+let PROXY = localStorage.getItem('stencil_proxy') || '';
+function proxyFetch(targetUrl, ua) {
+  const url = PROXY ? `${PROXY}?url=${encodeURIComponent(targetUrl)}` : targetUrl;
+  const headers = {};
+  if (PROXY && ua) headers['X-User-Agent'] = ua;
+  return fetch(url, { headers }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`); return r.text(); });
+}
+
+// ──────────────────────────────────────────────
+// EMBEDDED TEMPLATES
+// ──────────────────────────────────────────────
+const TEMPLATES = {
+  Surge: {
+    "Surge2026.conf": null  // loaded below
+  },
+  Stash: {
+    "StashProMax.yaml": null
+  }
+};
+</script>
+<!-- Templates injected by build script -->
+<script>TEMPLATES.Surge["Surge2026.conf"]="[General]\n# ========== \u57fa\u7840\u914d\u7f6e ==========\n# Enhanced Wi-Fi Assist\nwifi-assist = true\n# Hybrid Network (\u9762\u5411\u672a\u6765\u7f51\u7edc\u4f18\u5316)\nall-hybrid = true\n# Gaming Optimization (\u6e38\u620f\u4f18\u5316\u589e\u5f3a)\nudp-priority = true\n# Latency Benchmark\ninternet-test-url = http://wifi.vivo.com.cn/generate_204\nproxy-test-url = http://1.1.1.1/generate_204\ntest-timeout = 3\n# GeoIP Database\ngeoip-maxmind-url = https://raw.githubusercontent.com/Loyalsoldier/geoip/release/Country.mmdb\n# IPv6 Support (2026 \u5e74 IPv6 \u5c06\u66f4\u52a0\u666e\u53ca)\nipv6 = true\nipv6-vif = auto\n\n# ========== \u7f51\u7edc\u8bbf\u95ee\u914d\u7f6e ==========\nallow-wifi-access = false\nwifi-access-http-port = 6152\nwifi-access-socks5-port = 6153\nhttp-listen = 0.0.0.0\nsocks5-listen = 0.0.0.0\nallow-hotspot-access = true\n\n# ========== \u8fdc\u7a0b\u63a7\u5236\u914d\u7f6e ==========\nexternal-controller-access = steve@0.0.0.0:6160\nhttp-api = steve@0.0.0.0:6166\nhttp-api-tls = true\nhttp-api-web-dashboard = true\n\n# ========== \u517c\u5bb9\u6027\u914d\u7f6e ==========\ncompatibility-mode = 0\nexclude-simple-hostnames = true\n\n# ========== DNS \u914d\u7f6e ==========\nread-etc-hosts = true\nuse-local-host-item-for-proxy = true\nencrypted-dns-follow-outbound-mode = true\ninclude-all-networks = false\ndns-server = 223.5.5.5, 223.6.6.6, 1.1.1.1, 8.8.8.8, system\n\n# ========== \u8def\u7531\u914d\u7f6e ==========\ninclude-local-networks = false\nloglevel = notify\nskip-proxy = localhost, *.local, injections.adguard.org, local.adguard.org, captive.apple.com, guzzoni.apple.com, 0.0.0.0/8, 10.0.0.0/8, 17.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16, 172.16.0.0/12, 192.0.0.0/24, 192.0.2.0/24, 192.168.0.0/16, 192.88.99.0/24, 198.18.0.0/15, 198.51.100.0/24, 203.0.113.0/24, 224.0.0.0/4, 240.0.0.0/4, 255.255.255.255/32\n\n# ========== \u9ad8\u7ea7\u914d\u7f6e ==========\nshow-error-page-for-reject = true\nalways-real-ip = link-ip.nextdns.io, *.msftconnecttest.com, *.msftncsi.com, *.srv.nintendo.net, *.stun.playstation.net, xbox.*.microsoft.com, *.xboxlive.com, *.logon.battlenet.com.cn, *.logon.battle.net, stun.l.google.com\nhijack-dns = 8.8.8.8:53, 8.8.4.4:53, 1.1.1.1:53\nforce-http-engine-hosts = *.ott.cibntv.net, 123.59.31.1,119.18.193.135, 122.14.246.33, 175.102.178.52, 116.253.24.*, 175.6.26.*, 220.169.153.*\nuse-default-policy-if-wifi-not-primary = false\nudp-policy-not-supported-behaviour = REJECT\n\n[Proxy]\n# ========== \u81ea\u5efa\u8282\u70b9\u793a\u4f8b ==========\n# \u8bf7\u5728\u6b64\u5904\u6dfb\u52a0\u4f60\u7684\u81ea\u5efa\u8282\u70b9\n\n[Proxy Group]\n# ========== \u6838\u5fc3\u7b56\u7565\u7ec4 ==========\n# > \u4e3b\u7b56\u7565\u7ec4\nNoAuto = select, Proxy, Mainland, Automatic, AllServer, no-alert=0, hidden=0, include-all-proxies=0, icon-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Auto.png\nAutomatic = smart, no-alert=0, hidden=0, include-all-proxies=0, include-other-group=AllServer, interval=600, tolerance=50, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/Urltest.png\nProxy = select,  Automatic, AllServer, \"Hong Kong\", Taiwan, Singapore, Japan, \"United States\", \"United Kingdom\", no-alert=0, hidden=0, include-all-proxies=0, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/Global.png\n\n# > \u8ba2\u9605\u8282\u70b9\u7ec4\nAllServer = select, update-interval=0, no-alert=0, hidden=0, include-all-proxies=1, policy-regex-filter=^((?!Remain|Expired|\u5b98\u7f51|\u5982\u9700|\u5957\u9910|\u53bb\u9664|\u5269\u4f59|\u8ddd\u79bb|Reset|\u91cd\u7f6e|\u6d41\u91cf).)+$, icon-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Server.png\n\n# > \u76f4\u8fde\u7b56\u7565\u7ec4\nMainland = select, DIRECT, no-alert=0, hidden=0, include-all-proxies=0, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/CN.png\n\n# ========== \u5e94\u7528\u4e13\u7528\u7b56\u7565\u7ec4 ==========\n# > AI \u670d\u52a1 (2026 \u5e74 AI \u670d\u52a1\u5c06\u66f4\u52a0\u91cd\u8981)\nAI = select, Proxy, \"Hong Kong\", Taiwan, Japan, Singapore, \"United States\", \"United Kingdom\", Korea, Canada, Australia, no-alert=0, hidden=0, include-all-proxies=0, icon-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Bot.png\n\n# > Apple \u670d\u52a1\nApple = select, Proxy, Mainland, \"Hong Kong\", Taiwan, Japan, Singapore, \"United States\", \"United Kingdom\", Korea, Canada, Australia, no-alert=0, hidden=0, include-all-proxies=0, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/Apple.png\n\n# > Microsoft \u670d\u52a1\nMicrosoft = select, Proxy, Mainland, \"Hong Kong\", Taiwan, Japan, Singapore, \"United States\", \"United Kingdom\", Korea, Canada, Australia, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/Microsoft.png\nOneDrive = select, Proxy, Mainland, \"Hong Kong\", Taiwan, Japan, Singapore, \"United States\", \"United Kingdom\", Korea, Canada, Australia, icon-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/OneDrive.png\n\n# > Google \u670d\u52a1\nGoogle = select, Proxy, Automatic, \"Hong Kong\", Taiwan, Japan, Singapore, \"United States\", \"United Kingdom\", Korea, Canada, Australia, no-alert=0, hidden=0, include-all-proxies=0, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/Google.png\n\n# > \u793e\u4ea4\u901a\u8baf\nWeChat = select, Proxy, Mainland, \"Hong Kong\", Taiwan, Japan, Singapore, \"United States\", \"United Kingdom\", Korea, Canada, Australia, icon-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/WeChat.png\nTelegram = select, Proxy, Automatic, \"Hong Kong\", Taiwan, Japan, Singapore, \"United States\", \"United Kingdom\", Korea, Canada, Australia, no-alert=0, hidden=0, include-all-proxies=0, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/Telegram.png\nTwitter = select, Proxy, Automatic, \"Hong Kong\", Taiwan, Japan, Singapore, \"United States\", \"United Kingdom\", Korea, Canada, Australia, no-alert=0, hidden=0, include-all-proxies=0, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/Twitter.png\n\n# ========== \u6d41\u5a92\u4f53\u7b56\u7565\u7ec4 ==========\n# > \u56fd\u9645\u6d41\u5a92\u4f53\nNetflix = select, Proxy, \"Hong Kong\", Taiwan, Japan, Singapore, \"United States\", \"United Kingdom\", Korea, Canada, Australia, no-alert=0, hidden=0, include-all-proxies=0, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/Netflix.png\nDisney+ = select, Proxy, \"Hong Kong\", Taiwan, Japan, Singapore, \"United States\", \"United Kingdom\", Korea, Canada, Australia, no-alert=0, hidden=0, include-all-proxies=0, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/DisneyPlus.png\nYouTube = select, Proxy, Automatic, \"Hong Kong\", Taiwan, Japan, Singapore, \"United States\", \"United Kingdom\", Korea, Canada, Australia, no-alert=0, hidden=0, include-all-proxies=0, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/YouTube.png\nTikTok = select, Proxy, \"Hong Kong\", Taiwan, Japan, Singapore, \"United States\", \"United Kingdom\", Korea, Canada, Australia, no-alert=0, hidden=0, include-all-proxies=0, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/TikTok.png\nPrime Video = select, Proxy, \"Hong Kong\", Taiwan, Japan, Singapore, \"United States\", \"United Kingdom\", Korea, Canada, Australia, no-alert=0, hidden=0, include-all-proxies=0, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/PrimeVideo.png\n\n# > \u56fd\u5185\u6d41\u5a92\u4f53\nBilibili = select, Mainland, \"Hong Kong\", Taiwan, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/Bili.png\n\n# ========== \u6e38\u620f\u7b56\u7565\u7ec4 ==========\n# > \u6e38\u620f\u5e73\u53f0 (2026 \u5e74\u4e91\u6e38\u620f\u5c06\u66f4\u52a0\u666e\u53ca)\nGaming = select, Mainland, \"Hong Kong\", Singapore, Japan, \"United States\", no-alert=0, hidden=0, include-all-proxies=0, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/GAME.png\nSteam = select, Mainland, \"Hong Kong\", Singapore, Japan, \"United States\", no-alert=0, hidden=0, include-all-proxies=0, icon-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Steam.png\n\n# ========== \u529f\u80fd\u6027\u7b56\u7565\u7ec4 ==========\n# > \u7f51\u7edc\u6d4b\u8bd5\nSpeedtest = select, Mainland, Automatic, AllServer, no-alert=0, hidden=0, include-all-proxies=0, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/Speedtest.png\n\n# > \u8f6f\u4ef6\u4e0b\u8f7d\nDownload = select, Proxy, Mainland, Automatic, AllServer, \"Hong Kong\", Taiwan, Singapore, Japan, \"United States\", \"United Kingdom\", no-alert=0, hidden=0, include-all-proxies=0, icon-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Download.png\n\n# ========== \u5730\u533a\u8282\u70b9\u7ec4 ==========\nHong Kong = smart, update-interval=0, policy-regex-filter=\u6e2f|\ud83c\udded\ud83c\uddf0|\u9999\u6e2f|HK|Hong, no-alert=0, hidden=0, include-all-proxies=0, include-other-group=AllServer, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/HK.png\nTaiwan = smart, update-interval=0, policy-regex-filter=\u53f0|\ud83c\udde8\ud83c\uddf3|\u53f0\u6e7e|TW|Tai, no-alert=0, hidden=0, include-all-proxies=0, include-other-group=AllServer, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/TW.png\nJapan = smart, update-interval=0, policy-regex-filter=\u65e5|\ud83c\uddef\ud83c\uddf5|\u65e5\u672c|JP|Japan, no-alert=0, hidden=0, include-all-proxies=0, include-other-group=AllServer, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/JP.png\nSingapore = smart, update-interval=0, policy-regex-filter=\u5761|\ud83c\uddf8\ud83c\uddec|\u65b0\u52a0\u5761|\u72ee\u57ce|SG|Singapore, no-alert=0, hidden=0, include-all-proxies=0, include-other-group=AllServer, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/SG.png\nUnited States = smart, update-interval=0, policy-regex-filter=\u7f8e|\ud83c\uddfa\ud83c\uddf8|\u7f8e\u56fd|US|States|American, no-alert=0, hidden=0, include-all-proxies=0, include-other-group=AllServer, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/US.png\nUnited Kingdom = smart, update-interval=0, policy-regex-filter=\ud83c\uddec\ud83c\udde7|\u82f1\u56fd|\u82f1|\u82f1\u683c\u5170|UK|United Kingdom, interval=600, tolerance=50, no-alert=0, hidden=0, include-all-proxies=0, include-other-group=AllServer, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/UK.png\nKorea = smart, update-interval=0, policy-regex-filter=\u97e9|\u97e9\u56fd|Korea|KR|\ud83c\uddf0\ud83c\uddf7, no-alert=0, hidden=0, include-all-proxies=0, include-other-group=AllServer, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/KR.png\nCanada = smart, update-interval=0, policy-regex-filter=\u52a0\u62ff\u5927|\ud83c\udde8\ud83c\udde6|Canada|CA, no-alert=0, hidden=0, include-all-proxies=0, include-other-group=AllServer, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/CA.png\nAustralia = smart, update-interval=0, policy-regex-filter=\u6fb3\u6d32|\u6fb3\u5927\u5229\u4e9a|\ud83c\udde6\ud83c\uddfa|Australia|AU, no-alert=0, hidden=0, include-all-proxies=0, include-other-group=AllServer, icon-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/AU.png\n\n[Rule]\n# ========== 1. \u7279\u6b8a\u5904\u7406\u89c4\u5219 ==========\n# > \u5c40\u57df\u7f51\u89c4\u5219\uff08\u6700\u9ad8\u4f18\u5148\u7ea7\uff09\nRULE-SET,LAN,DIRECT\n\n# > \u5b89\u5168\u9632\u62a4\u89c4\u5219 (2026 \u5e74\u589e\u5f3a\u7248)\n# > \u53cd\u8bc8\u9a97\u4e2d\u5fc3\nDOMAIN,prpr.96110.cn.com,DIRECT\nDOMAIN-KEYWORD,96110,REJECT\nDOMAIN-SUFFIX,gjfzpt.cn,REJECT\n\n# > \u6076\u610f\u8f6f\u4ef6\u9632\u62a4\nDOMAIN-KEYWORD,malware,REJECT\nDOMAIN-KEYWORD,virus,REJECT\nDOMAIN-KEYWORD,trojan,REJECT\n\n# > Safari \u9632\u8df3\u8f6c\nDOMAIN,app-site-association.cdn-apple.com,REJECT\n\n# > \u534f\u8bae\u4f18\u5316\nAND,((PROTOCOL,UDP), (DOMAIN-SUFFIX,googlevideo.com)),REJECT-NO-DROP\nAND,((PROTOCOL,QUIC)),REJECT\n\n# ========== 2. \u5e7f\u544a\u62e6\u622a\u89c4\u5219 ==========\n# > \u5e7f\u544a\u62e6\u622a\u589e\u5f3a\u7248\nRULE-SET,https://limbopro.com/Adblock4limbo_surge.list,REJECT\nRULE-SET,https://ruleset.skk.moe/List/non_ip/reject-drop.conf,REJECT-DROP\nDOMAIN-SET,https://ruleset.skk.moe/List/domainset/reject.conf,REJECT-TINYGIF\nRULE-SET,https://ruleset.skk.moe/List/non_ip/reject.conf,REJECT\nRULE-SET,https://ruleset.skk.moe/List/ip/reject.conf,REJECT-DROP\n\n# ========== 3. \u4fee\u6b63\u89c4\u5219 ==========\nRULE-SET,https://raw.githubusercontent.com/zxfccmm4/Profiles/refs/heads/main/Surge/Ruleset/Unbreak.list,DIRECT\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/ChinaDNS/ChinaDNS.list,DIRECT\nRULE-SET,https://raw.githubusercontent.com/bunizao/TutuBetterRules/tutu/RuleList/DOMAlN/Direct.list,DIRECT\n\n# ========== 4. AI \u670d\u52a1\u89c4\u5219 ==========\n# > AI \u670d\u52a1 (2026 \u5e74\u6269\u5c55\u7248)\nDOMAIN-SUFFIX,openai.com,AI\nDOMAIN-SUFFIX,anthropic.com,AI\nDOMAIN-SUFFIX,claude.ai,AI\nDOMAIN-SUFFIX,googleapis.com,AI // Gemini\nDOMAIN-SUFFIX,perplexity.ai,AI\nDOMAIN-SUFFIX,midjourney.com,AI\nRULE-SET,https://ruleset.skk.moe/List/non_ip/ai.conf,AI\n\n# > Apple Intelligence\nDOMAIN-SUFFIX,apple-relay.apple.com,AI\nDOMAIN-SUFFIX,apple-relay.cloudflare.com,AI\nDOMAIN-KEYWORD,apple-relay,AI\n\n# > Microsoft AI\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Bing/Bing.list,AI\n\n# ========== 5. \u5e94\u7528\u670d\u52a1\u89c4\u5219 ==========\n# > Apple \u670d\u52a1\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/AppStore/AppStore.list,DIRECT\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/AppleNews/AppleNews.list,United States\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/AppleTV/AppleTV.list,Apple\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Apple/Apple.list,Apple\nDOMAIN-SET,https://ruleset.skk.moe/List/domainset/apple_cdn.conf,Apple\n\n# > Google \u670d\u52a1\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/GoogleSearch/GoogleSearch.list,Google\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/GoogleDrive/GoogleDrive.list,Google\n\n# > Microsoft \u670d\u52a1\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/OneDrive/OneDrive.list,OneDrive\nRULE-SET,https://ruleset.skk.moe/List/non_ip/microsoft.conf,Microsoft\n\n# > \u5373\u65f6\u901a\u8baf\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/WeChat/WeChat.list,WeChat\nRULE-SET,https://ruleset.skk.moe/List/non_ip/telegram.conf,Telegram\nRULE-SET,https://ruleset.skk.moe/List/ip/telegram.conf,Telegram\nRULE-SET,https://ruleset.skk.moe/List/ip/telegram_asn.conf,Telegram\n\n# > \u793e\u4ea4\u5a92\u4f53\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Twitter/Twitter.list,Twitter\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Facebook/Facebook.list,Proxy\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Threads/Threads.list,Proxy\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Instagram/Instagram.list,Proxy\n\n# > \u5f00\u53d1\u5de5\u5177\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/GitHub/GitHub.list,Proxy\n\n# > \u5176\u4ed6\u670d\u52a1\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Tesla/Tesla.list,DIRECT\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Speedtest/Speedtest.list,Speedtest\n\n# ========== 6. \u6d41\u5a92\u4f53\u670d\u52a1\u89c4\u5219 ==========\n# > \u56fd\u9645\u6d41\u5a92\u4f53\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Netflix/Netflix.list,Netflix\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Disney/Disney.list,Disney+\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/PrimeVideo/PrimeVideo.list,Prime Video\nRULE-SET,https://raw.githubusercontent.com/Semporia/TikTok-Unlock/master/Surge/TikTok.list,TikTok\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/YouTube/YouTube.list,YouTube\n\n# > \u56fd\u5185\u6d41\u5a92\u4f53\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/BiliBili/BiliBili.list,Bilibili\n\n# > \u5176\u4ed6\u6d41\u5a92\u4f53\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Emby/Emby.list,Proxy\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Discord/Discord.list,Proxy\n\n# ========== 7. \u6e38\u620f\u89c4\u5219 ==========\n# > \u6e38\u620f\u5e73\u53f0 (2026 \u5e74\u6269\u5c55\u7248)\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Steam/Steam.list,Steam\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Epic/Epic.list,Gaming\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Riot/Riot.list,Gaming\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Blizzard/Blizzard.list,Gaming\n\n# ========== 8. \u5730\u533a\u6027\u6d41\u5a92\u4f53\u89c4\u5219 ==========\n# > \u5317\u7f8e\u76f8\u5173\u6d41\u5a92\u4f53\nRULE-SET,https://ruleset.skk.moe/List/non_ip/stream_us.conf,United States\nRULE-SET,https://ruleset.skk.moe/List/ip/stream_us.conf,United States\n\n# > \u6b27\u6d32\u76f8\u5173\u6d41\u5a92\u4f53\nRULE-SET,https://ruleset.skk.moe/List/non_ip/stream_eu.conf,United Kingdom\nRULE-SET,https://ruleset.skk.moe/List/ip/stream_eu.conf,United Kingdom\n\n# > \u65e5\u672c\u76f8\u5173\u6d41\u5a92\u4f53\nRULE-SET,https://ruleset.skk.moe/List/non_ip/stream_jp.conf,Japan\nRULE-SET,https://ruleset.skk.moe/List/ip/stream_jp.conf,Japan\n\n# > \u97e9\u56fd\u76f8\u5173\u6d41\u5a92\u4f53\nRULE-SET,https://ruleset.skk.moe/List/non_ip/stream_kr.conf,Korea\nRULE-SET,https://ruleset.skk.moe/List/ip/stream_kr.conf,Korea\n\n# > \u9999\u6e2f\u76f8\u5173\u6d41\u5a92\u4f53\nRULE-SET,https://ruleset.skk.moe/List/non_ip/stream_hk.conf,Hong Kong\nRULE-SET,https://ruleset.skk.moe/List/ip/stream_hk.conf,Hong Kong\n\n# > \u53f0\u6e7e\u76f8\u5173\u6d41\u5a92\u4f53\nRULE-SET,https://ruleset.skk.moe/List/non_ip/stream_tw.conf,Taiwan\nRULE-SET,https://ruleset.skk.moe/List/ip/stream_tw.conf,Taiwan\n\n# ========== 9. \u7279\u5b9a\u57df\u540d\u89c4\u5219 ==========\n# > \u7279\u5b9a\u9700\u6c42\u57df\u540d\nDOMAIN-SUFFIX,mypikpak.com,United States\nDOMAIN-SUFFIX,vercel.app,Proxy\nRULE-SET,https://raw.githubusercontent.com/getsomecat/GetSomeCats/Surge/rule/substore.list,Proxy\n\n# > \u81ea\u5b9a\u4e49\u57df\u540d\u89c4\u5219\nDOMAIN-SUFFIX,api.themoviedb.org,Proxy\nDOMAIN-SUFFIX,nssurge.com,Proxy\nDOMAIN-SUFFIX,surgee.me,Proxy\nDOMAIN-SUFFIX,www.torrentmac.net,Proxy\nDOMAIN-SUFFIX,cloudflare.com,Proxy\nDOMAIN-SUFFIX,appstorrent.ru,DIRECT\nDOMAIN,jable.tv,Proxy\nDOMAIN,api.amplitude.com,Proxy\nDOMAIN,m.cmx.im,Proxy\n\n# > Mail \u670d\u52a1\nDOMAIN-SUFFIX,smtp,DIRECT\nURL-REGEX,(Subject|HELO|SMTP),DIRECT\n\n# ========== 10. CDN \u548c\u57fa\u7840\u670d\u52a1\u89c4\u5219 ==========\n# > \u5e38\u89c1\u9759\u6001 CDN\nDOMAIN-SET,https://ruleset.skk.moe/List/domainset/cdn.conf,Proxy\nRULE-SET,https://ruleset.skk.moe/List/non_ip/cdn.conf,Proxy\n\n# > \u7f51\u6613\u4e91\u97f3\u4e50\nRULE-SET,https://ruleset.skk.moe/List/non_ip/neteasemusic.conf,Mainland\nRULE-SET,https://ruleset.skk.moe/List/ip/neteasemusic.conf,Mainland\n\n# ========== 11. \u901a\u7528\u5206\u6d41\u89c4\u5219 ==========\n# > \u4e2d\u56fd\u76f8\u5173\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/ChinaMax/ChinaMax.list,DIRECT\nRULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/XiaoHongShu/XiaoHongShu.list,DIRECT\nRULE-SET,https://raw.githubusercontent.com/zxfccmm4/Profiles/main/Surge/Ruleset/China.list,DIRECT\nRULE-SET,https://raw.githubusercontent.com/VirgilClyne/GetSomeFries/main/ruleset/ASN.China.list,DIRECT\n\n# > \u8f6f\u4ef6\u66f4\u65b0\u3001\u64cd\u4f5c\u7cfb\u7edf\u7b49\u5927\u6587\u4ef6\u4e0b\u8f7d\nDOMAIN-SET,https://ruleset.skk.moe/List/domainset/download.conf,Download\nRULE-SET,https://ruleset.skk.moe/List/non_ip/download.conf,Download\n\n# > \u56fd\u5185\u76f4\u8fde\u89c4\u5219\nRULE-SET,https://ruleset.skk.moe/List/non_ip/domestic.conf,Mainland\nRULE-SET,https://ruleset.skk.moe/List/non_ip/direct.conf,Mainland\nRULE-SET,https://ruleset.skk.moe/List/ip/domestic.conf,Mainland\n\n# > \u5168\u7403\u4ee3\u7406\u89c4\u5219\nRULE-SET,https://ruleset.skk.moe/List/non_ip/global_plus.conf,Proxy\nRULE-SET,https://ruleset.skk.moe/List/non_ip/global.conf,Proxy\nRULE-SET,https://raw.githubusercontent.com/zxfccmm4/Profiles/main/Surge/Ruleset/Global.list,Proxy\n\n# ========== 12. \u515c\u5e95\u89c4\u5219 ==========\nFINAL,NoAuto,dns-failed\n\n[Host]\n# ========== Apple \u670d\u52a1 ==========\n*testflight.apple.com = server:8.8.4.4\n\n# ========== Google \u670d\u52a1 ==========\n# > Firebase Cloud Messaging\nmtalk.google.com = 108.177.125.188\n# > Google Download \u76f8\u5173\ndl.google.com = server:119.29.29.29\ndl.l.google.com = server:119.29.29.29\nupdate.googleapis.com = server:119.29.29.29\n\n# ========== \u56fd\u5185\u7535\u5546\u5e73\u53f0 ==========\n# > \u963f\u91cc\u7cfb\n*.taobao.com = server:223.5.5.5\n*.tmall.com = server:223.5.5.5\n*.alipay.com = server:223.5.5.5\n*.alicdn.com = server:223.5.5.5\n*.aliyun.com = server:223.5.5.5\n\n# > \u4eac\u4e1c\n*.jd.com = server:119.28.28.28\n\n# > \u62fc\u591a\u591a (2026 \u5e74\u65b0\u589e)\n*.pinduoduo.com = server:119.29.29.29\n*.pdd.cn = server:119.29.29.29\n\n# ========== \u793e\u4ea4\u901a\u8baf\u5e73\u53f0 ==========\n# > \u817e\u8baf\u7cfb\n*.qq.com = server:119.28.28.28\n*.tencent.com = server:119.28.28.28\n*.weixin.com = server:119.28.28.28\n\n# ========== \u89c6\u9891\u5a31\u4e50\u5e73\u53f0 ==========\n# > \u54d4\u54e9\u54d4\u54e9\n*.bilibili.com = server:119.29.29.29\nhdslb.com = server:119.29.29.29\n\n# > \u7f51\u6613\u7cfb\n*.163.com = server:119.29.29.29\n*.126.com = server:119.29.29.29\n*.126.net = server:119.29.29.29\n*.127.net = server:119.29.29.29\n*.netease.com = server:119.29.29.29\n\n# > \u6296\u97f3 (2026 \u5e74\u65b0\u589e)\n*.douyin.com = server:119.29.29.29\n*.bytedance.com = server:119.29.29.29\n\n# ========== \u786c\u4ef6\u5382\u5546 ==========\n# > \u5c0f\u7c73\n*.mi.com = server:119.29.29.29\n*.xiaomi.com = server:119.29.29.29\n\n# > \u534e\u4e3a (2026 \u5e74\u65b0\u589e)\n*.huawei.com = server:119.29.29.29\n*.vmall.com = server:119.29.29.29\n\n# ========== AI \u670d\u52a1 DNS ==========\n# > OpenAI\n*.openai.com = server:1.1.1.1\n*.anthropic.com = server:1.1.1.1\n\n# ========== \u8def\u7531\u5668\u7ba1\u7406\u9762\u677f ==========\n# > \u65b0\u4e00\u4ee3\u8def\u7531\u5668\u54c1\u724c\n*.unifi.com = server:syslib // Ubiquiti UniFi\namplifi.lan = server:syslib // Ubiquiti Amplifi Router\nrouter.synology.com = server:syslib // Synology Router\nsila.razer.com = server:syslib // Razer Sila Router\nrouter.asus.com = server:syslib // Asus Router\nrouterlogin.net = server:syslib // Netgear Router\norbilogin.com = server:syslib // Netgear Orbi Router\nwww.LinksysSmartWiFi.com = server:syslib // Linksys Router\nLinksysSmartWiFi.com = server:syslib // Linksys Router\nmyrouter.local = server:syslib // Linksys Router\nwww.miwifi.com = server:syslib // Xiaomi Mi WiFi Router\nmiwifi.com = server:syslib // Xiaomi Mi WiFi Router\nmediarouter.home = server:syslib // Huawei Router\ntplogin.cn = server:syslib // TP-Link Router\ntplinklogin.net = server:syslib // TP-Link Router\nmelogin.cn = server:syslib // MERCURY Router\nfalogin.cn = server:syslib // FAST Router\n\n[URL Rewrite]\n# ========== Google \u670d\u52a1\u91cd\u5b9a\u5411 ==========\n# > Google \u641c\u7d22\u670d\u52a1\u91cd\u5b9a\u5411\n^https?:\\/\\/(www.)?(g|google)\\.cn https://www.google.com 302\n# > Google \u5730\u56fe\u670d\u52a1\u91cd\u5b9a\u5411\n^https?:\\/\\/(ditu|maps).google\\.cn https://maps.google.com 302\n\n# ========== HTTPS \u91cd\u5b9a\u5411 ==========\n# > \u7535\u5546\u5e73\u53f0 HTTPS \u91cd\u5b9a\u5411\n^https?:\\/\\/(www.)?taobao\\.com\\/ https://taobao.com/ 302\n^https?:\\/\\/(www.)?jd\\.com\\/ https://www.jd.com/ 302\n^https?:\\/\\/(www.)?suning\\.com\\/ https://suning.com/ 302\n^https?:\\/\\/(www.)?yhd\\.com\\/ https://yhd.com/ 302\n^https?:\\/\\/(www.)?pinduoduo\\.com\\/ https://pinduoduo.com/ 302\n\n# > \u5176\u4ed6\u7f51\u7ad9 HTTPS \u91cd\u5b9a\u5411\n^https?:\\/\\/(www.)?mi\\.com\\/ https://www.mi.com/ 302\n^https?:\\/\\/you\\.163\\.com\\/ https://you.163.com/ 302\n\n# ========== \u6d41\u5a92\u4f53\u76f8\u5173 ==========\n# > AbemaTV IP \u68c0\u6d4b\u5c4f\u853d\n^https?:\\/\\/api\\.abema\\.io\\/v\\d\\/ip\\/check - reject\n\n# ========== 2026 \u5e74\u65b0\u589e\u91cd\u5199\u89c4\u5219 ==========\n# > \u963b\u6b62\u4e0d\u5fc5\u8981\u7684\u66f4\u65b0\u68c0\u67e5\n^https?:\\/\\/.*\\.update\\.microsoft\\.com\\/.* - reject\n^https?:\\/\\/.*\\.windowsupdate\\.com\\/.* - reject\n\n# ========== \u81ea\u5b9a\u4e49\u91cd\u5199\u89c4\u5219 ==========\n# > CUSTOM URL header\n\n[Header Rewrite]\n# ========== \u77e5\u4e4e\u76f8\u5173 ==========\n# > \u77e5\u4e4e\u5ba2\u6237\u7aef\u4f2a\u88c5\nhttp-request ^https?:\\/\\/.*\\.zhihu\\.com\\/(question|topic) header-replace User-Agent \"osee2unifiedRelease/4432 osee2unifiedReleaseVersion/7.8.0 Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148\"\n\n# ========== GitHub \u76f8\u5173 ==========\n# > \u89e3\u51b3 GitHub \u901f\u7387\u9650\u5236\u8fd4\u56de 429 \u95ee\u9898\nhttp-request ^https:\\/\\/github\\.com\\/ header-replace Accept-Language en-us\nhttp-request ^https:\\/\\/(raw|gist)\\.githubusercontent\\.com\\/ header-replace Accept-Language en-us\n\n# ========== 2026 \u5e74\u65b0\u589e Header \u91cd\u5199 ==========\n# > AI \u670d\u52a1\u4f18\u5316\nhttp-request ^https:\\/\\/.*\\.openai\\.com\\/.* header-add X-Forwarded-For \"8.8.8.8\"\nhttp-request ^https:\\/\\/.*\\.anthropic\\.com\\/.* header-add X-Forwarded-For \"8.8.8.8\"\n\n[MITM]\n# ========== MITM \u57fa\u672c\u914d\u7f6e ==========\nskip-server-cert-verify = true\ntcp-connection = true\nh2 = true\n\n# ========== MITM \u57df\u540d\u5217\u8868 ==========\nhostname = %APPEND% www.google.cn, api.abema.io, *.zhihu.com, sub.store, github.com, raw.githubusercontent.com, gist.githubusercontent.com, *.openai.com, *.anthropic.com, -CUSTOMMitM";</script>
+<script>TEMPLATES.Stash["StashProMax.yaml"]="port: 7890\nsocks-port: 7891\nallow-lan: true\nmode: Rule\nlog-level: info\nexternal-controller: :9090\n\nproxy-providers:\n  SF:\n    type: http\n    url: \"\u6539\u6210\u4f60\u7684\u8ba2\u9605\"\n    interval: 86400\n    path: ./SF.yaml\n    health-check:\n      enable: true\n      interval: 600\n      url: http://cp.cloudflare.com/generate_204\ndns:\n  enable: true\n  ipv6: true\n  listen: 0.0.0.0:53\n  default-nameserver:\n    - 119.29.29.29\n    - 223.5.5.5\n  enhanced-mode: fake-ip\n  fake-ip-range: 198.18.0.1/16\n  fake-ip-filter:\n    - '*.lan'\n    - localhost.ptlogin2.qq.com\n    - '+.srv.nintendo.net'\n    - '+.stun.playstation.net'\n    - '+.msftconnecttest.com'\n    - '+.msftncsi.com'\n    - '+.xboxlive.com'\n    - 'msftconnecttest.com'\n    - 'xbox.*.microsoft.com'\n    - '*.battlenet.com.cn'\n    - '*.battlenet.com'\n    - '*.blzstatic.cn'\n    - '*.battle.net'\n  nameserver:\n    - https://doh.pub/dns-query\n    - https://dns.alidns.com/dns-query\nproxies: []\nproxy-groups:\n  - {name: \u8282\u70b9\u9009\u62e9, type: select, proxies: [\u81ea\u52a8\u9009\u62e9, \u9999\u6e2f\u8282\u70b9, \u53f0\u6e7e\u8282\u70b9, \u72ee\u57ce\u8282\u70b9, \u65e5\u672c\u8282\u70b9, \u7f8e\u56fd\u8282\u70b9, \u82f1\u56fd\u8282\u70b9, \u5176\u4ed6\u8282\u70b9, \u624b\u52a8\u5207\u6362, DIRECT], icon: 'https://github.com/shindgewongxj/WHATSINStash/raw/main/icon/%24tash.png'}\n  - {name: \u624b\u52a8\u5207\u6362, type: select, proxies: null, icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Universal/Available.png', use: [SF], filter: '^((?!\u5957\u9910|\u5230\u671f|\u4f59\u989d|\u5269\u4f59|\u6d41\u91cf|\u5b98\u7f51).)*$'}\n  - {name: \u81ea\u52a8\u9009\u62e9, type: url-test, url: 'http://www.gstatic.com/generate_204', interval: 300, tolerance: 50, proxies: null, use: [SF], icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Universal/Auto_Speed.png', filter: '^((?!\u5957\u9910|\u5230\u671f|\u4f59\u989d|\u5269\u4f59|\u6d41\u91cf|\u5b98\u7f51).)*$'}\n  - {name: \u7535\u62a5\u6d88\u606f, type: select, proxies: [\u8282\u70b9\u9009\u62e9, \u81ea\u52a8\u9009\u62e9, \u72ee\u57ce\u8282\u70b9, \u9999\u6e2f\u8282\u70b9, \u53f0\u6e7e\u8282\u70b9, \u65e5\u672c\u8282\u70b9, \u7f8e\u56fd\u8282\u70b9, \u624b\u52a8\u5207\u6362, DIRECT], icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Social_Media/Telegram.png'}\n  - {name: AI, type: select, proxies: [\u8282\u70b9\u9009\u62e9, \u81ea\u52a8\u9009\u62e9, \u72ee\u57ce\u8282\u70b9, \u9999\u6e2f\u8282\u70b9, \u53f0\u6e7e\u8282\u70b9, \u65e5\u672c\u8282\u70b9, \u7f8e\u56fd\u8282\u70b9, \u624b\u52a8\u5207\u6362, DIRECT], icon: 'https://github.com/shindgewongxj/WHATSINStash/raw/main/icon/openai.png'}\n  - {name: \u6cb9\u7ba1\u89c6\u9891, type: select, proxies: [\u8282\u70b9\u9009\u62e9, \u81ea\u52a8\u9009\u62e9, \u72ee\u57ce\u8282\u70b9, \u9999\u6e2f\u8282\u70b9, \u53f0\u6e7e\u8282\u70b9, \u65e5\u672c\u8282\u70b9, \u7f8e\u56fd\u8282\u70b9, \u624b\u52a8\u5207\u6362, DIRECT], icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Google_Suite/YouTube.png'}\n  - {name: \u5948\u98de\u89c6\u9891, type: select, proxies: [\u8282\u70b9\u9009\u62e9, \u81ea\u52a8\u9009\u62e9, \u72ee\u57ce\u8282\u70b9, \u9999\u6e2f\u8282\u70b9, \u53f0\u6e7e\u8282\u70b9, \u65e5\u672c\u8282\u70b9, \u7f8e\u56fd\u8282\u70b9, \u624b\u52a8\u5207\u6362, DIRECT], icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Universal/Netflix.png'}\n  - {name: \u54d4\u54e9\u54d4\u54e9, type: select, proxies: [\u5168\u7403\u76f4\u8fde, \u53f0\u6e7e\u8282\u70b9, \u9999\u6e2f\u8282\u70b9], icon: 'https://github.com/shindgewongxj/WHATSINStash/raw/main/icon/bilibilitv.png'}\n  - {name: \u56fd\u5916\u5a92\u4f53, type: select, proxies: [\u8282\u70b9\u9009\u62e9, \u81ea\u52a8\u9009\u62e9, \u9999\u6e2f\u8282\u70b9, \u53f0\u6e7e\u8282\u70b9, \u72ee\u57ce\u8282\u70b9, \u65e5\u672c\u8282\u70b9, \u7f8e\u56fd\u8282\u70b9, \u624b\u52a8\u5207\u6362, DIRECT], icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Social_Media/Diaspora.png'}\n  - {name: \u56fd\u5185\u5a92\u4f53, type: select, proxies: [DIRECT, \u9999\u6e2f\u8282\u70b9, \u53f0\u6e7e\u8282\u70b9, \u72ee\u57ce\u8282\u70b9, \u65e5\u672c\u8282\u70b9, \u624b\u52a8\u5207\u6362], icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Universal/TencentVideo.png'}\n  - {name: Instagram, type: select, proxies: [\u8282\u70b9\u9009\u62e9, \u81ea\u52a8\u9009\u62e9, \u9999\u6e2f\u8282\u70b9, \u53f0\u6e7e\u8282\u70b9, \u72ee\u57ce\u8282\u70b9, \u65e5\u672c\u8282\u70b9, \u7f8e\u56fd\u8282\u70b9, \u5176\u4ed6\u8282\u70b9, \u624b\u52a8\u5207\u6362], icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Social_Media/Instagram.png'}\n  - {name: Twitter, type: select, proxies: [\u8282\u70b9\u9009\u62e9, \u81ea\u52a8\u9009\u62e9, \u9999\u6e2f\u8282\u70b9, \u53f0\u6e7e\u8282\u70b9, \u72ee\u57ce\u8282\u70b9, \u65e5\u672c\u8282\u70b9, \u7f8e\u56fd\u8282\u70b9, \u624b\u52a8\u5207\u6362], icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Social_Media/Twitter.png'}\n  - {icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Social_Media/TikTok.png', name: TikTok, proxies: [\u8282\u70b9\u9009\u62e9, \u65e5\u672c\u8282\u70b9, \u7f8e\u56fd\u8282\u70b9, \u53f0\u6e7e\u8282\u70b9, \u72ee\u57ce\u8282\u70b9], type: select}\n  - {name: \u8c37\u6b4cFCM, type: select, proxies: [DIRECT, \u8282\u70b9\u9009\u62e9, \u7f8e\u56fd\u8282\u70b9, \u9999\u6e2f\u8282\u70b9, \u53f0\u6e7e\u8282\u70b9, \u72ee\u57ce\u8282\u70b9, \u65e5\u672c\u8282\u70b9, \u624b\u52a8\u5207\u6362], icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Google_Suite/Google.png'}\n  - {name: WeChat, type: select, proxies: [DIRECT, \u9999\u6e2f\u8282\u70b9, \u53f0\u6e7e\u8282\u70b9, \u72ee\u57ce\u8282\u70b9, \u65e5\u672c\u8282\u70b9, \u624b\u52a8\u5207\u6362], icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Universal/WeChat.png'}\n  - {name: \u7f51\u6613\u97f3\u4e50, type: select, proxies: [DIRECT, \u8282\u70b9\u9009\u62e9, \u81ea\u52a8\u9009\u62e9], icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Universal/NetEase_Music.png'}\n  - {name: Spotify, type: select, proxies: [DIRECT, \u8282\u70b9\u9009\u62e9, \u7f8e\u56fd\u8282\u70b9, \u9999\u6e2f\u8282\u70b9, \u53f0\u6e7e\u8282\u70b9, \u72ee\u57ce\u8282\u70b9, \u65e5\u672c\u8282\u70b9, \u624b\u52a8\u5207\u6362], icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Social_Media/Spotify.png'}\n  - {name: \u5fae\u8f6f\u4e91\u76d8, type: select, proxies: [DIRECT, \u8282\u70b9\u9009\u62e9, \u7f8e\u56fd\u8282\u70b9, \u9999\u6e2f\u8282\u70b9, \u53f0\u6e7e\u8282\u70b9, \u72ee\u57ce\u8282\u70b9, \u65e5\u672c\u8282\u70b9, \u624b\u52a8\u5207\u6362], icon: 'https://raw.githubusercontent.com/Orz-3/mini/master/Alpha/ASN.png'}\n  - {name: \u5fae\u8f6f\u670d\u52a1, type: select, proxies: [DIRECT, \u8282\u70b9\u9009\u62e9, \u7f8e\u56fd\u8282\u70b9, \u9999\u6e2f\u8282\u70b9, \u53f0\u6e7e\u8282\u70b9, \u72ee\u57ce\u8282\u70b9, \u65e5\u672c\u8282\u70b9, \u624b\u52a8\u5207\u6362], icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Universal/Microsoft.png'}\n  - {name: \u82f9\u679c\u670d\u52a1, type: select, proxies: [DIRECT, \u8282\u70b9\u9009\u62e9, \u7f8e\u56fd\u8282\u70b9, \u9999\u6e2f\u8282\u70b9, \u53f0\u6e7e\u8282\u70b9, \u72ee\u57ce\u8282\u70b9, \u65e5\u672c\u8282\u70b9, \u624b\u52a8\u5207\u6362], icon: 'https://github.com/shindgewongxj/WHATSINStash/raw/main/icon/apple.png'}\n  - {name: \u5168\u7403\u76f4\u8fde, type: select, proxies: [DIRECT, \u8282\u70b9\u9009\u62e9, \u81ea\u52a8\u9009\u62e9], icon: 'https://github.com/shindgewongxj/WHATSINStash/raw/main/icon/londoneye.png'}\n  - {name: Speedtest, type: select, proxies: [DIRECT, \u8282\u70b9\u9009\u62e9], icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Universal/Speedtest.png'}\n  - {name: \u6f0f\u7f51\u4e4b\u9c7c, type: select, proxies: [\u8282\u70b9\u9009\u62e9, \u81ea\u52a8\u9009\u62e9, DIRECT, \u9999\u6e2f\u8282\u70b9, \u53f0\u6e7e\u8282\u70b9, \u72ee\u57ce\u8282\u70b9, \u65e5\u672c\u8282\u70b9, \u7f8e\u56fd\u8282\u70b9, \u82f1\u56fd\u8282\u70b9, \u624b\u52a8\u5207\u6362], icon: 'https://github.com/shindgewongxj/WHATSINStash/raw/main/icon/betahub.png'}\n  - {name: \u9999\u6e2f\u8282\u70b9, type: url-test, url: 'http://www.gstatic.com/generate_204', interval: 300, tolerance: 50, proxies: null, use: [SF], filter: \u6e2f|\ud83c\udded\ud83c\uddf0|\u9999\u6e2f|HK|Hong, icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Rounded_Rectangle/Hong_Kong.png'}\n  - {name: \u65e5\u672c\u8282\u70b9, type: url-test, url: 'http://www.gstatic.com/generate_204', interval: 300, tolerance: 50, proxies: null, filter: \u65e5|\ud83c\uddef\ud83c\uddf5|\u65e5\u672c|JP|Japan, use: [SF], icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Rounded_Rectangle/Japan.png'}\n  - {name: \u7f8e\u56fd\u8282\u70b9, type: url-test, url: 'http://www.gstatic.com/generate_204', interval: 300, tolerance: 50, proxies: null, filter: \u7f8e|\ud83c\uddfa\ud83c\uddf8|\u7f8e\u56fd|US|States|American, use: [SF], icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Rounded_Rectangle/United_States.png'}\n  - {name: \u53f0\u6e7e\u8282\u70b9, type: url-test, url: 'http://www.gstatic.com/generate_204', interval: 300, tolerance: 50, proxies: null, filter: \u53f0|\ud83c\udde8\ud83c\uddf3|\u53f0\u6e7e|TW|Tai, use: [SF], icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Rounded_Rectangle/Taiwan.png'}\n  - {name: \u72ee\u57ce\u8282\u70b9, type: url-test, url: 'http://www.gstatic.com/generate_204', interval: 300, tolerance: 50, proxies: null, filter: \u5761|\ud83c\uddf8\ud83c\uddec|\u65b0\u52a0\u5761|\u72ee\u57ce|SG|Singapore, use: [SF], icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Rounded_Rectangle/Singapore.png'}\n  - {name: \u82f1\u56fd\u8282\u70b9, type: url-test, url: 'http://www.gstatic.com/generate_204', interval: 300, tolerance: 50, proxies: null, filter: \ud83c\uddec\ud83c\udde7|\u82f1\u56fd|\u82f1|\u82f1\u683c\u5170|UK|United Kingdom, use: [SF], icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Rounded_Rectangle/United_Kingdom.png'}\n  - {name: \u5176\u4ed6\u8282\u70b9, type: url-test, url: 'http://www.gstatic.com/generate_204', interval: 300, tolerance: 50, proxies: null, filter: '^((?!\u5957\u9910|\u5230\u671f|\u4f59\u989d|\u5269\u4f59|\u6d41\u91cf|\u5b98\u7f51|\ud83c\udded\ud83c\uddf0|\u6e2f|HK|Hong|\ud83c\uddf9\ud83c\uddfc|\u53f0|TW|Tai|\ud83c\uddef\ud83c\uddf5|\u65e5|JP|Japan|\ud83c\uddf8\ud83c\uddec|\u5761|\u72ee\u57ce|SG|Singapore|\ud83c\uddf0\ud83c\uddf7|\u97e9|KR|KOR|Korea|\ud83c\uddfa\ud83c\uddf8|\u7f8e|US|States|American|\ud83c\uddec\ud83c\udde7|\u82f1\u56fd|\u82f1|\u82f1\u683c\u5170|UK|United Kingdom).)*$', icon: 'https://raw.githubusercontent.com/Semporia/Hand-Painted-icon/master/Rounded_Rectangle/Turkey.png', use: [SF]}\nrule-providers:\n  Apple: {type: http, behavior: classical, url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Apple/Apple.yaml', path: ./ruleset/Apple.yaml, interval: 86400}\n  Spotify: {type: http, behavior: classical, url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Spotify/Spotify.yaml', path: ./ruleset/Apple.yaml, interval: 86400}\n  China: {type: http, behavior: domain, url: 'https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Providers/ChinaDomain.yaml', path: ./ruleset/ChinaDomain.yaml, interval: 86400}\n  ChinaIp: {type: http, behavior: ipcidr, url: 'https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Providers/ChinaIp.yaml', path: ./ruleset/ChinaIp.yaml, interval: 86400}\n  GoogleFCM: {type: http, behavior: classical, url: 'https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/GoogleFCM/GoogleFCM.yaml', path: ./ruleset/GoogleFCM.yaml, interval: 86400}\n  Netflix: {type: http, behavior: classical, url: 'https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/Netflix/Netflix.yaml', path: ./ruleset/Netflix.yaml, interval: 86400}\n  Netflix_IP: {type: http, behavior: ipcidr, url: 'https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/Netflix/Netflix_IP.txt', path: ./ruleset/Netflix_IP.yaml, interval: 86400, format: text}\n  Microsoft: {type: http, behavior: classical, url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Microsoft/Microsoft.yaml', path: ./ruleset/Microsoft.yaml, interval: 86400}\n  OneDrive: {type: http, behavior: classical, url: 'https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/OneDrive/OneDrive.yaml', path: ./ruleset/OneDrive.yaml, interval: 86400}\n  LinkedIn: {type: http, behavior: classical, url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/LinkedIn/LinkedIn.yaml', path: ./ruleset/LinkedIn.yaml, interval: 86400}\n  WeChat: {type: http, behavior: classical, url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/WeChat/WeChat.yaml', path: ./ruleset/WeChat.yaml, interval: 86400}\n  BiliBili: {type: http, behavior: classical, url: 'https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/BiliBili/BiliBili.yaml', path: ./ruleset/BiliBili.yaml, interval: 86400}\n  Telegram: {type: http, behavior: classical, url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Telegram/Telegram.yaml', path: ./ruleset/Telegram.yaml, interval: 86400}\n  OpenAI: {type: http, behavior: classical, url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/OpenAI/OpenAI.yaml', path: ./ruleset/OpenAI.yaml, interval: 86400}\n  Gemini: {type: http, behavior: classical, url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Gemini/Gemini.yaml', path: ./ruleset/Gemini.yaml, interval: 86400}\n  Copilot: {type: http, behavior: classical, url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Copilot/Copilot.yaml', path: ./ruleset/Copilot.yaml, interval: 86400}\n  Claude: {type: http, behavior: classical, url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Claude/Claude.yaml', path: ./ruleset/Claude.yaml, interval: 86400}\n  Anthropic: {type: http, behavior: classical, url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Anthropic/Anthropic.yaml', path: ./ruleset/Anthropic.yaml, interval: 86400}\n  Bing: {type: http, behavior: classical, url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Bing/Bing.yaml', path: ./ruleset/Bing.yaml, interval: 86400}\n  Twitter: {type: http, behavior: classical, url: 'https://raw.githubusercontents.com/blackmatrix7/ios_rule_script/master/rule/Clash/Twitter/Twitter.yaml', path: ./ruleset/Twitter.yaml, interval: 86400}\n  YouTube: {type: http, behavior: classical, url: 'https://raw.githubusercontents.com/blackmatrix7/ios_rule_script/master/rule/Clash/YouTube/YouTube.yaml', path: ./ruleset/YouTube.yaml, interval: 86400}\n  ChinaMedia: {type: http, behavior: classical, url: 'https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Providers/ChinaMedia.yaml', path: ./ruleset/ChinaMedia.yaml, interval: 86400}\n  GlobalMedia: {type: http, behavior: classical, url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/GlobalMedia/GlobalMedia.yaml', path: ./ruleset/Streaming.yaml, interval: 86400}\n  Streaming: {type: http, behavior: domain, url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/GlobalMedia/GlobalMedia_Domain_For_Clash.txt', path: ./ruleset/Streaming.yaml, interval: 86400}\n  Proxy: {type: http, behavior: classical, url: 'https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/Proxy/Proxy.yaml', path: ./ruleset/Proxy.yaml, interval: 86400}\n  Proxy_Domain: {type: http, behavior: domain, url: 'https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/Proxy/Proxy_Domain_For_Clash.txt', path: ./ruleset/Proxy_Domain_For_Clash.yaml, interval: 86400, format: txt}\n  Instagram: {type: http, behavior: classical, url: 'https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/Instagram/Instagram.yaml', path: ./ruleset/Instagram.yaml, interval: 86400}\n  Threads: {type: http, behavior: classical, url: 'https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/Threads/Threads.yaml', path: ./ruleset/Threads.yaml, interval: 86400}\n  Speedtest: {type: http, behavior: classical, url: 'https://ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Speedtest/Speedtest.yaml', path: ./ruleset/Speedtest.yaml, interval: 86400}\n  NetEaseMusic: {type: http, behavior: classical, url: 'https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/NetEaseMusic/NetEaseMusic.yaml', path: ./ruleset/NetEaseMusic.yaml, interval: 86400}\n  Lan: {type: http, behavior: classical, url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Lan/Lan.yaml', path: ./ruleset/lan.yaml, interval: 86400}\n  TikTok: {behavior: classical, format: yaml, interval: 86400, url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/TikTok/TikTok.yaml'}\nrules:\n  # \u5206\u6d41\u89c4\u5219\u5f15\u7528\n  - RULE-SET,TikTok,TikTok\n  - RULE-SET,Proxy,\u8282\u70b9\u9009\u62e9\n  - RULE-SET,LinkedIn,\u8282\u70b9\u9009\u62e9\n  - RULE-SET,Proxy_Domain,\u8282\u70b9\u9009\u62e9\n  - RULE-SET,Apple,\u82f9\u679c\u670d\u52a1\n  - RULE-SET,China,\u5168\u7403\u76f4\u8fde\n  - RULE-SET,ChinaIp,\u5168\u7403\u76f4\u8fde,no-resolve\n  - RULE-SET,GoogleFCM,\u8c37\u6b4cFCM\n  - RULE-SET,Netflix,\u5948\u98de\u89c6\u9891\n  - RULE-SET,Netflix_IP,\u5948\u98de\u89c6\u9891,no-resolve\n  - RULE-SET,Microsoft,\u5fae\u8f6f\u670d\u52a1\n  - RULE-SET,OneDrive,\u5fae\u8f6f\u4e91\u76d8\n  - RULE-SET,WeChat,WeChat\n  - RULE-SET,BiliBili,\u54d4\u54e9\u54d4\u54e9\n  - RULE-SET,Telegram,\u7535\u62a5\u6d88\u606f\n  - RULE-SET,OpenAI,AI\n  - RULE-SET,Gemini,AI\n  - RULE-SET,Anthropic,AI\n  - RULE-SET,Bing,AI\n  - RULE-SET,Copilot,AI\n  - RULE-SET,Claude,AI\n  - RULE-SET,Telegram,\u7535\u62a5\u6d88\u606f\n  - RULE-SET,Spotify,Spotify\n  - RULE-SET,YouTube,\u6cb9\u7ba1\u89c6\u9891\n  - RULE-SET,ChinaMedia,\u56fd\u5185\u5a92\u4f53\n  - RULE-SET,Streaming,\u56fd\u5916\u5a92\u4f53\n  - RULE-SET,GlobalMedia,\u56fd\u5916\u5a92\u4f53\n  - RULE-SET,Instagram,Instagram\n  - RULE-SET,Threads,Instagram\n  - RULE-SET,Speedtest,Speedtest\n  - RULE-SET,NetEaseMusic,\u7f51\u6613\u97f3\u4e50\n  - RULE-SET,Twitter,Twitter\n  - GEOIP,CN,DIRECT\n  - MATCH,\u6f0f\u7f51\u4e4b\u9c7c\n";</script>
+<script>
+// ──────────────────────────────────────────────
+// GENERATION ENGINE
+// ──────────────────────────────────────────────
+function extractSurgeNodes(text) {
+  const lines = text.split('\n');
+  let inProxy = false, nodes = [];
+  for (const line of lines) {
+    if (line.startsWith('[Proxy]')) { inProxy = true; continue; }
+    if (inProxy && line.startsWith('[')) { inProxy = false; continue; }
+    if (!inProxy) continue;
+    if (/^[^#\s].*=\s*(anytls|ss|ssr|trojan|vmess|vless|hysteria2?|tuic|http|https|socks5(-tls)?|snell|wireguard|direct)(\s*,|\s*$)/.test(line)) nodes.push(line);
+  }
+  return nodes;
+}
+
+function genSurge(templateText, subText) {
+  const nodes = extractSurgeNodes(subText);
+  if (!nodes.length) throw new Error('No Surge proxy nodes found in subscription');
+  const out = []; let inProxy = false, done = false;
+  for (const line of templateText.split('\n')) {
+    if (line.startsWith('[Proxy]') && !done) { out.push(line); out.push(...nodes); out.push(''); done = true; inProxy = true; continue; }
+    if (inProxy) { if (line.startsWith('[')) { inProxy = false; out.push(line); } continue; }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+
+function extractStashClash(text) {
+  const lines = text.split('\n'); let inP = false; const out = [];
+  for (const line of lines) {
+    if (line.trim() === 'proxies:') { inP = true; continue; }
+    if (inP) { if (/^[a-zA-Z]/.test(line)) break; out.push(line); }
+  }
+  return out.join('\n');
+}
+
+function uri2clash(text) {
+  const result = [];
+  for (let line of text.split('\n')) {
+    line = line.trim();
+    if (!line.startsWith('anytls://')) continue;
+    let rest = line.slice('anytls://'.length);
+    const atIdx = rest.indexOf('@');
+    if (atIdx === -1) continue;
+    const password = rest.slice(0, atIdx);
+    rest = rest.slice(atIdx + 1);
+    let name = '', query = '';
+    const hashIdx = rest.indexOf('#');
+    if (hashIdx !== -1) { name = decodeURIComponent(rest.slice(hashIdx + 1)); rest = rest.slice(0, hashIdx); }
+    const qIdx = rest.indexOf('?');
+    if (qIdx !== -1) { query = rest.slice(qIdx + 1); rest = rest.slice(0, qIdx); }
+    const hostPort = rest.split('/')[0];
+    const [host, port = '443'] = hostPort.includes(':') ? hostPort.split(':') : [hostPort, '443'];
+    let sni = '', fp = '';
+    for (const p of query.split('&')) {
+      if (p.startsWith('sni=')) sni = p.slice(4);
+      else if (p.startsWith('fp=')) fp = p.slice(3);
+    }
+    if (!name) name = host;
+    let entry = `  - {name: "${name}", type: anytls, server: ${host}, port: ${port}, password: "${password}", udp: true`;
+    if (sni) entry += `, sni: ${sni}`;
+    if (fp) entry += `, client-fingerprint: ${fp}`;
+    entry += '}';
+    result.push(entry);
+  }
+  return result.join('\n');
+}
+
+function genStash(templateText, subText) {
+  let clash = extractStashClash(subText);
+  if (!clash.trim()) {
+    // Try base64 decode
+    try {
+      const decoded = atob(subText.replace(/\s/g, ''));
+      if (decoded.includes('://')) clash = uri2clash(decoded);
+    } catch(e) {}
+  }
+  if (!clash.trim()) throw new Error('No usable proxy nodes found for Stash');
+
+  // Build names array
+  const names = [];
+  for (const line of clash.split('\n')) {
+    let m = line.match(/"name"\s*:\s*"([^"]*)"/);
+    if (!m) m = line.match(/[{,]\s*name\s*:\s*"?([^",}]+)"?/);
+    if (m) names.push(m[1]);
+  }
+
+  const out = []; let inPP = false, done = false;
+  for (const line of templateText.split('\n')) {
+    if (inPP) { if (/^[a-zA-Z]/.test(line)) inPP = false; else continue; }
+    if (line.trim() === 'proxy-providers:') { inPP = true; continue; }
+    if (line.trim() === 'proxies: []' && !done) { out.push('proxies:'); out.push(clash.trimEnd()); done = true; continue; }
+    if (line.includes('use: [SF]')) { out.push(rewriteStashGroup(line, names)); continue; }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+
+function rewriteStashGroup(line, names) {
+  let filterVal = '';
+  let m = line.match(/filter:\s*'([^']*)'/);
+  if (m) filterVal = m[1];
+  else { m = line.match(/filter:\s*([^,\s}]+)/); if (m) filterVal = m[1]; }
+
+  let matched;
+  if (filterVal.startsWith('^((?!')) {
+    let inner = filterVal.replace(/^\^\(\(\?!/, '').replace(/\)\.\)\*\$$/, '');
+    const re = new RegExp(inner);
+    matched = names.filter(n => !re.test(n));
+  } else if (filterVal) {
+    const re = new RegExp(filterVal);
+    matched = names.filter(n => re.test(n));
+  } else {
+    matched = [...names];
+  }
+
+  const joined = matched.map(n => `"${n}"`).join(', ');
+  line = line.replace(/,\s*use:\s*\[SF\]/, '');
+  line = line.replace(/,\s*filter:\s*'[^']*'/, '');
+  line = line.replace(/,\s*filter:\s*[^,\}]+/, '');
+  return line.replace(/proxies:\s*null/, `proxies: [${joined}]`);
+}
+
+// ──────────────────────────────────────────────
+// UI STATE & LOGIC
+// ──────────────────────────────────────────────
+const $ = s => document.querySelector(s), $$ = s => document.querySelectorAll(s);
+let state = { step: 1, client: null, template: null, subUrl: '', filename: '', blob: null };
+
+function showStep(n) {
+  for (let i = 1; i <= 4; i++) $(`#step-${i}`).classList.toggle('hidden', i !== n);
+  $$('.step-dot').forEach(d => {
+    const s = +d.dataset.step;
+    if (s < n) d.className = d.className.replace(/bg-\S+/, 'bg-brand-border/30').replace(/text-\S+/, 'text-brand-muted');
+    else if (s === n) d.className = d.className.replace(/bg-\S+/, 'bg-brand-cta').replace(/text-\S+/, 'text-brand-bg').replace(/shadow-\S+/, 'shadow-lg shadow-brand-cta/25');
+    else d.className = d.className.replace(/bg-\S+/, 'bg-brand-border').replace(/text-\S+/, 'text-brand-muted').replace(/shadow-\S+/, '');
+  });
+  state.step = n; window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function enBtn(id, on) {
+  const b = $(`#${id}`);
+  b.disabled = !on;
+  if (on && (id.startsWith('next') || id === 'btn-download')) b.className = 'px-6 py-2.5 rounded-xl bg-brand-cta hover:bg-brand-cta-hover text-brand-bg font-semibold text-sm shadow-lg shadow-brand-cta/25 cursor-pointer';
+  else if (on) b.className = 'px-6 py-2.5 rounded-xl bg-brand-border/50 hover:bg-brand-border text-brand-text font-medium text-sm cursor-pointer';
+  else b.className = 'px-6 py-2.5 rounded-xl bg-brand-border text-brand-muted cursor-not-allowed font-medium text-sm';
+}
+
+// Load client options
+(function init() {
+  const c = $('#client-options');
+  for (const client of Object.keys(TEMPLATES)) {
+    const tpls = Object.keys(TEMPLATES[client]);
+    const card = document.createElement('div');
+    card.className = 'cursor-pointer p-6 rounded-xl border-2 border-brand-border hover:border-brand-cta/50 transition-all duration-200 bg-brand-bg/50 hover:bg-brand-bg';
+    card.innerHTML = `<div class="text-2xl font-bold font-mono mb-1">${client}</div><div class="text-sm text-brand-muted">${tpls.length} template(s)</div>`;
+    card.onclick = () => {
+      $$('#client-options > div').forEach(e => e.classList.remove('border-brand-cta','bg-brand-bg'));
+      card.classList.add('border-brand-cta','bg-brand-bg');
+      state.client = client; state.template = null;
+      loadTplList(tpls);
+      enBtn('next-1', true); enBtn('next-2', false);
+    };
+    c.appendChild(card);
+  }
+})();
+
+function loadTplList(tpls) {
+  const c = $('#template-options'); c.innerHTML = '';
+  tpls.forEach(tpl => {
+    const card = document.createElement('div');
+    card.className = 'cursor-pointer p-4 rounded-xl border border-brand-border hover:border-brand-cta/50 transition-all duration-200 bg-brand-bg/50 hover:bg-brand-bg flex items-center gap-3';
+    card.innerHTML = `<span class="font-mono text-sm">${tpl}</span>`;
+    card.onclick = () => {
+      $$('#template-options > div').forEach(e => e.classList.remove('border-brand-cta','bg-brand-bg'));
+      card.classList.add('border-brand-cta','bg-brand-bg');
+      state.template = tpl; enBtn('next-2', true);
+    };
+    c.appendChild(card);
+  });
+}
+
+$('#next-1').onclick = () => showStep(2);
+$('#next-2').onclick = () => {
+  const stem = state.template.replace(/\.(conf|yaml)$/, '');
+  const ext = state.client === 'Surge' ? '.conf' : '.yaml';
+  const def = `${stem}.filled${ext}`;
+  const inp = $('#out-filename');
+  if (!inp.value || inp.value === def || inp.dataset.last !== stem) { inp.value = def; inp.dataset.last = stem; }
+  showStep(3);
+};
+$('#back-2').onclick = () => showStep(1);
+$('#back-3').onclick = () => showStep(2);
+
+$('#next-3').onclick = async () => {
+  state.subUrl = $('#sub-url').value.trim();
+  let fn = $('#out-filename').value.trim();
+  if (fn) { const ext = state.client === 'Surge' ? '.conf' : '.yaml'; if (!fn.endsWith(ext)) fn += ext; }
+  state.filename = fn || undefined;
+  if (!state.subUrl) return;
+  showStep(4);
+  await doGenerate();
+};
+
+$('#back-4').onclick = () => {
+  state = { step: 1, client: null, template: null, subUrl: '', filename: '', blob: null };
+  $('#sub-url').value = ''; $('#out-filename').value = '';
+  $('#gen-loading').classList.add('hidden'); $('#gen-error').classList.add('hidden'); $('#gen-success').classList.add('hidden');
+  enBtn('next-1', false); enBtn('next-2', false);
+  showStep(1);
+};
+
+$('#btn-download').onclick = () => triggerDownload();
+
+async function doGenerate() {
+  $('#gen-loading').classList.remove('hidden'); $('#gen-error').classList.add('hidden'); $('#gen-success').classList.add('hidden');
+  try {
+    const tplText = TEMPLATES[state.client][state.template];
+    if (!tplText) throw new Error('Template not found');
+
+    // Fetch subscription via proxy
+    const ua = state.client === 'Surge' ? 'Surge iOS/3000 CFNetwork Darwin' : 'ClashforWindows/0.20.39';
+    let subText = await proxyFetch(state.subUrl, ua);
+
+    // Stash fallback: retry with v2rayN UA
+    if (state.client === 'Stash') {
+      let clash = extractStashClash(subText);
+      if (!clash.trim()) {
+        try { subText = await proxyFetch(state.subUrl, 'v2rayN/6.45'); } catch(e) {}
+      }
+    }
+
+    // Generate
+    let result;
+    if (state.client === 'Surge') result = genSurge(tplText, subText);
+    else result = genStash(tplText, subText);
+
+    state.blob = new Blob([result], { type: 'application/octet-stream' });
+    if (!state.filename) {
+      const stem = state.template.replace(/\.(conf|yaml)$/, '');
+      state.filename = `${stem}.filled.${state.client === 'Surge' ? 'conf' : 'yaml'}`;
+    }
+    $('#gen-filename').textContent = state.filename;
+    $('#gen-loading').classList.add('hidden');
+    $('#gen-success').classList.remove('hidden');
+  } catch (e) {
+    $('#gen-loading').classList.add('hidden');
+    $('#gen-error').classList.remove('hidden');
+    $('#gen-error-msg').textContent = e.message || 'Generation failed';
+  }
+}
+
+async function triggerDownload() {
+  if (!state.blob) return;
+  let saved = false;
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({ suggestedName: state.filename });
+      const w = await handle.createWritable();
+      await w.write(state.blob); await w.close();
+      saved = true;
+    } catch(e) { if (e.name === 'AbortError') return; }
+  }
+  if (!saved) {
+    const url = URL.createObjectURL(new File([state.blob], state.filename, { type: 'application/octet-stream' }));
+    const a = document.createElement('a'); a.href = url; a.download = state.filename; a.style.display = 'none';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    saved = true;
+  }
+  if (saved) {
+    $('#dl-icon').innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>';
+    $('#dl-text').textContent = 'Download Again';
+    $('#dl-done').classList.remove('hidden');
+  }
+}
+
+// ──────────────────────────────────────────────
+// PROXY CONFIGURATION
+// ──────────────────────────────────────────────
+$('#proxy-status').onclick = () => { $('#proxy-modal').classList.remove('hidden'); $('#proxy-url').value = PROXY; };
+$('#proxy-cancel').onclick = () => $('#proxy-modal').classList.add('hidden');
+$('#proxy-save').onclick = async () => {
+  const url = $('#proxy-url').value.trim();
+  PROXY = url;
+  localStorage.setItem('stencil_proxy', url);
+  if (url) {
+    try {
+      await proxyFetch('https://httpbin.org/get', 'Stencil/1.0');
+      $('#proxy-test-result').className = 'mt-3 text-sm text-brand-cta'; $('#proxy-test-result').textContent = '✓ Proxy working';
+      $('#proxy-status').classList.remove('text-brand-muted'); $('#proxy-status').classList.add('text-brand-cta');
+    } catch(e) {
+      $('#proxy-test-result').className = 'mt-3 text-sm text-red-400'; $('#proxy-test-result').textContent = '⚠ Proxy test failed: ' + e.message;
+      $('#proxy-status').classList.add('text-brand-muted'); $('#proxy-status').classList.remove('text-brand-cta');
+    }
+    $('#proxy-test-result').classList.remove('hidden');
+  } else {
+    $('#proxy-modal').classList.add('hidden');
+    $('#proxy-status').classList.remove('text-brand-cta'); $('#proxy-status').classList.add('text-brand-muted');
+  }
+};
+
+showStep(1);
+</script>
+</body>
+</html>
