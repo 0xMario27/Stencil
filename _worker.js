@@ -2,6 +2,19 @@
 // Deploy to Cloudflare Workers, then use as proxy in the frontend
 export default {
   async fetch(request) {
+    // Handle CORS preflight
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, OPTIONS',
+          'Access-Control-Allow-Headers': '*',
+          'Access-Control-Max-Age': '86400',
+        },
+      });
+    }
+
     const url = new URL(request.url);
     const target = url.searchParams.get('url');
 
