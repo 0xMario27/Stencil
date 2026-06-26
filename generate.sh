@@ -184,6 +184,7 @@ echo -e "${c_t}Step 1/4  Choose client${c_o}"
 clients=()
 ls Surge/*.conf  >/dev/null 2>&1 && clients+=("Surge")
 ls Stash/*.yaml  >/dev/null 2>&1 && clients+=("Stash")
+ls ClashMac/*.yaml >/dev/null 2>&1 && clients+=("ClashMac")
 [ "${#clients[@]}" -gt 0 ] || { echo -e "  ${c_e}No client templates found (Surge/*.conf or Stash/*.yaml)${c_o}"; exit 1; }
 choose "Choose client" "${clients[@]}"; CLIENT="$REPLY_ITEM"
 echo -e "  Selected: ${c_ok}${CLIENT}${c_o}\n"
@@ -193,6 +194,7 @@ echo -e "${c_t}Step 2/4  Choose template${c_o}"
 case "$CLIENT" in
   Surge) dir="Surge"; ext="conf";;
   Stash) dir="Stash"; ext="yaml";;
+  ClashMac) dir="ClashMac"; ext="yaml";;
 esac
 tpls=()
 while IFS= read -r f; do tpls+=("$(basename "$f")"); done < <(ls -1 "$dir"/*."$ext" 2>/dev/null | grep -v '\.filled\.' || true)
@@ -232,6 +234,7 @@ echo -e "  Client: ${c_d}${CLIENT}${c_o}  Template: ${c_d}${TPL}${c_o}  Output: 
 case "$CLIENT" in
   Surge) gen_surge "$SUB" "$TPL" "$OUT";;
   Stash) gen_stash "$SUB" "$TPL" "$OUT";;
+  ClashMac) gen_stash "$SUB" "$TPL" "$OUT";;
 esac
 echo -e "  📄 ${c_ok}$(pwd)/${OUTDIR}/${OUT}${c_o}"
 echo -e "  ${c_d}Import into the corresponding client (contains real credentials; do not commit to git)${c_o}"

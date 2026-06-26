@@ -26,6 +26,7 @@ def list_templates():
     for client, glob_pat, ext in [
         ("Surge", "Surge/*.conf", ".conf"),
         ("Stash", "Stash/*.yaml", ".yaml"),
+        ("ClashMac", "ClashMac/*.yaml", ".yaml"),
     ]:
         files = sorted(
             f.name
@@ -296,7 +297,7 @@ def api_generate():
     try:
         if client == "Surge":
             content, default_name = gen_surge(template, sub_url)
-        elif client == "Stash":
+        elif client in ("Stash", "ClashMac"):
             content, default_name = gen_stash(template, sub_url)
         else:
             return jsonify({"error": f"Unknown client: {client}"}), 400
