@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stencil Config Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['IBM Plex Sans', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              bg: '#0F172A',
+              surface: '#1E293B',
+              border: '#334155',
+              text: '#F8FAFC',
+              muted: '#94A3B8',
+              cta: '#22C55E',
+              'cta-hover': '#16A34A',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-brand-bg text-brand-text font-sans min-h-screen antialiased">
+
+  <!-- Background pattern -->
+  <div class="fixed inset-0 -z-10">
+    <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-surface/40 via-brand-bg to-brand-bg"></div>
+    <div class="absolute inset-0 opacity-[0.03]" style="background-image: url('data:image/svg+xml,%3Csvg width=\"60\" height=\"60\" viewBox=\"0 0 60 60\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cg fill=\"none\" fill-rule=\"evenodd\"%3E%3Cg fill=\"%2322C55E\" fill-opacity=\"0.4\"%3E%3Cpath d=\"M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E');"></div>
+  </div>
+
+  <!-- Navbar -->
+  <nav class="fixed top-4 left-4 right-4 z-50 max-w-6xl mx-auto">
+    <div class="bg-brand-surface/80 backdrop-blur-xl border border-brand-border/50 rounded-2xl px-6 py-3 flex items-center justify-between shadow-lg shadow-brand-bg/50">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-cta to-emerald-400 flex items-center justify-center">
+          <svg class="w-5 h-5 text-brand-bg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <span class="font-semibold text-lg tracking-tight">Stencil<span class="text-brand-cta">.</span></span>
+      </div>
+      <div class="flex items-center gap-4 text-sm text-brand-muted">
+        <a href="https://github.com/0xMario27/Stencil" target="_blank" class="hover:text-brand-text transition-colors duration-200 cursor-pointer inline-flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+          GitHub
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <main class="pt-28 pb-16 px-4 max-w-2xl mx-auto">
+
+    <!-- Header -->
+    <div class="text-center mb-12">
+      <h1 class="text-4xl font-bold tracking-tight mb-3">Config Generator</h1>
+      <p class="text-brand-muted text-lg">Generate ready-to-use proxy configurations in seconds</p>
+    </div>
+
+    <!-- Step Indicators -->
+    <div class="flex items-center justify-center gap-3 mb-12" id="steps-indicator">
+      <div class="step-dot w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 bg-brand-cta text-brand-bg shadow-lg shadow-brand-cta/25" data-step="1">1</div>
+      <div class="w-8 h-0.5 bg-brand-border rounded-full transition-all duration-300" data-connector="1-2"></div>
+      <div class="step-dot w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 bg-brand-border text-brand-muted" data-step="2">2</div>
+      <div class="w-8 h-0.5 bg-brand-border rounded-full transition-all duration-300" data-connector="2-3"></div>
+      <div class="step-dot w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 bg-brand-border text-brand-muted" data-step="3">3</div>
+      <div class="w-8 h-0.5 bg-brand-border rounded-full transition-all duration-300" data-connector="3-4"></div>
+      <div class="step-dot w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 bg-brand-border text-brand-muted" data-step="4">4</div>
+    </div>
+
+    <!-- Step 1: Choose Client -->
+    <section id="step-1" class="bg-brand-surface border border-brand-border/50 rounded-2xl p-8 shadow-xl shadow-brand-bg/50 transition-all duration-300">
+      <h2 class="text-xl font-semibold mb-2">Step 1: Choose Client</h2>
+      <p class="text-brand-muted mb-6">Select your proxy client platform</p>
+      <div id="client-options" class="grid grid-cols-2 gap-4 mb-8">
+        <div class="text-center py-8 text-brand-muted">Loading templates...</div>
+      </div>
+      <div class="flex justify-end">
+        <button id="next-1" disabled class="px-6 py-2.5 rounded-xl bg-brand-border text-brand-muted cursor-not-allowed transition-all duration-200 font-medium text-sm">Next →</button>
+      </div>
+    </section>
+
+    <!-- Step 2: Choose Template -->
+    <section id="step-2" class="hidden bg-brand-surface border border-brand-border/50 rounded-2xl p-8 shadow-xl shadow-brand-bg/50 transition-all duration-300">
+      <h2 class="text-xl font-semibold mb-2">Step 2: Choose Template</h2>
+      <p class="text-brand-muted mb-6">Pick a configuration template</p>
+      <div id="template-options" class="space-y-3 mb-8">
+        <div class="text-center py-8 text-brand-muted">Select a client first</div>
+      </div>
+      <div class="flex justify-between">
+        <button id="back-2" class="px-6 py-2.5 rounded-xl bg-brand-border/50 hover:bg-brand-border text-brand-text transition-all duration-200 font-medium text-sm cursor-pointer">← Back</button>
+        <button id="next-2" disabled class="px-6 py-2.5 rounded-xl bg-brand-border text-brand-muted cursor-not-allowed transition-all duration-200 font-medium text-sm">Next →</button>
+      </div>
+    </section>
+
+    <!-- Step 3: Subscription URL -->
+    <section id="step-3" class="hidden bg-brand-surface border border-brand-border/50 rounded-2xl p-8 shadow-xl shadow-brand-bg/50 transition-all duration-300">
+      <h2 class="text-xl font-semibold mb-2">Step 3: Subscription &amp; Filename</h2>
+      <p class="text-brand-muted mb-6">Paste your subscription link and name the output file</p>
+      <div class="mb-6">
+        <label for="sub-url" class="block text-sm font-medium text-brand-text mb-2">Subscription URL</label>
+        <input type="url" id="sub-url" placeholder="https://your-subscription-link.com/sub" autocomplete="off"
+          class="w-full px-4 py-3 rounded-xl bg-brand-bg border border-brand-border focus:border-brand-cta focus:ring-1 focus:ring-brand-cta outline-none transition-all duration-200 text-brand-text placeholder:text-brand-muted/50 font-mono text-sm">
+      </div>
+      <div class="mb-8">
+        <label for="out-filename" class="block text-sm font-medium text-brand-text mb-2">Output Filename <span class="text-brand-muted font-normal">(optional)</span></label>
+        <input type="text" id="out-filename" placeholder="auto-generated" autocomplete="off"
+          class="w-full px-4 py-3 rounded-xl bg-brand-bg border border-brand-border focus:border-brand-cta focus:ring-1 focus:ring-brand-cta outline-none transition-all duration-200 text-brand-text placeholder:text-brand-muted/50 font-mono text-sm">
+      </div>
+      <div class="flex justify-between">
+        <button id="back-3" class="px-6 py-2.5 rounded-xl bg-brand-border/50 hover:bg-brand-border text-brand-text transition-all duration-200 font-medium text-sm cursor-pointer">← Back</button>
+        <button id="next-3" class="px-6 py-2.5 rounded-xl bg-brand-cta hover:bg-brand-cta-hover text-brand-bg font-semibold transition-all duration-200 text-sm shadow-lg shadow-brand-cta/25 cursor-pointer">Generate →</button>
+      </div>
+    </section>
+
+    <!-- Step 4: Download -->
+    <section id="step-4" class="hidden bg-brand-surface border border-brand-border/50 rounded-2xl p-8 shadow-xl shadow-brand-bg/50 transition-all duration-300">
+      <h2 class="text-xl font-semibold mb-2">Step 4: Download</h2>
+      <p class="text-brand-muted mb-6">Your configuration is ready</p>
+
+      <!-- Loading state -->
+      <div id="gen-loading" class="hidden text-center py-12">
+        <div class="inline-block w-10 h-10 border-3 border-brand-border border-t-brand-cta rounded-full animate-spin mb-4"></div>
+        <p class="text-brand-muted">Fetching and generating your config...</p>
+      </div>
+
+      <!-- Error state -->
+      <div id="gen-error" class="hidden mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+        <div class="flex items-start gap-3">
+          <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span id="gen-error-msg"></span>
+        </div>
+      </div>
+
+      <!-- Success state -->
+      <div id="gen-success" class="hidden text-center py-8">
+        <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-brand-cta/10 flex items-center justify-center">
+          <svg class="w-8 h-8 text-brand-cta" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <p class="text-lg font-semibold mb-1">Config generated successfully!</p>
+        <p id="gen-filename" class="text-brand-muted text-sm mb-6"></p>
+        <button id="btn-download" class="px-8 py-3 rounded-xl bg-brand-cta hover:bg-brand-cta-hover text-brand-bg font-semibold transition-all duration-200 text-base shadow-lg shadow-brand-cta/25 cursor-pointer inline-flex items-center gap-2">
+          <svg id="dl-icon" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          <span id="dl-text">Download Config</span>
+        </button>
+        <p id="dl-done" class="hidden text-brand-cta text-sm mt-3 font-medium">✓ Saved successfully</p>
+      </div>
+
+      <div class="flex justify-start mt-8">
+        <button id="back-4" class="px-6 py-2.5 rounded-xl bg-brand-border/50 hover:bg-brand-border text-brand-text transition-all duration-200 font-medium text-sm cursor-pointer">← Start Over</button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="text-center py-8 text-brand-muted text-sm">
+    <p>Stencil Config Generator · <span class="font-mono text-xs text-brand-cta/70">v1.0.0</span></p>
+  </footer>
+
+<script>
+// ── State ──
+let state = { step: 1, client: null, template: null, subUrl: '', downloadUrl: null, filename: '' };
+
+// ── Helpers ──
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => document.querySelectorAll(s);
+
+function showStep(n) {
+  for (let i = 1; i <= 4; i++) {
+    const sec = $(`#step-${i}`);
+    if (i === n) sec.classList.remove('hidden');
+    else sec.classList.add('hidden');
+  }
+  // Update step indicators
+  $$('.step-dot').forEach(dot => {
+    const s = parseInt(dot.dataset.step);
+    if (s < n) {
+      dot.className = 'step-dot w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 bg-brand-border/30 text-brand-muted';
+    } else if (s === n) {
+      dot.className = 'step-dot w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 bg-brand-cta text-brand-bg shadow-lg shadow-brand-cta/25';
+    } else {
+      dot.className = 'step-dot w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 bg-brand-border text-brand-muted';
+    }
+  });
+  $$('[data-connector]').forEach(conn => {
+    const [a, b] = conn.dataset.connector.split('-').map(Number);
+    conn.classList.toggle('bg-brand-cta/50', a < n && b <= n);
+    conn.classList.toggle('bg-brand-border', !(a < n && b <= n));
+  });
+  state.step = n;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function enableBtn(id, enable) {
+  const btn = $(id);
+  if (enable) {
+    btn.disabled = false;
+    btn.className = btn.id.startsWith('next') || btn.id === 'btn-download'
+      ? 'px-6 py-2.5 rounded-xl bg-brand-cta hover:bg-brand-cta-hover text-brand-bg font-semibold transition-all duration-200 text-sm shadow-lg shadow-brand-cta/25 cursor-pointer'
+      : 'px-6 py-2.5 rounded-xl bg-brand-border/50 hover:bg-brand-border text-brand-text transition-all duration-200 font-medium text-sm cursor-pointer';
+  } else {
+    btn.disabled = true;
+    btn.className = 'px-6 py-2.5 rounded-xl bg-brand-border text-brand-muted cursor-not-allowed transition-all duration-200 font-medium text-sm';
+  }
+}
+
+// ── Step 1: Load clients ──
+async function loadTemplates() {
+  try {
+    const res = await fetch('/api/templates');
+    const data = await res.json();
+    const container = $('#client-options');
+    container.innerHTML = '';
+    Object.keys(data).forEach(client => {
+      const card = document.createElement('div');
+      card.className = 'cursor-pointer p-6 rounded-xl border-2 border-brand-border hover:border-brand-cta/50 transition-all duration-200 bg-brand-bg/50 hover:bg-brand-bg';
+      card.innerHTML = `
+        <div class="text-2xl font-bold font-mono mb-1">${client}</div>
+        <div class="text-sm text-brand-muted">${data[client].length} template(s)</div>
+      `;
+      card.onclick = () => {
+        $$('#client-options > div').forEach(el => el.classList.remove('border-brand-cta', 'bg-brand-bg'));
+        card.classList.add('border-brand-cta', 'bg-brand-bg');
+        state.client = client;
+        state.template = null;
+        loadTemplateList(data[client]);
+        enableBtn('#next-1', true);
+        enableBtn('#next-2', false);
+      };
+      container.appendChild(card);
+    });
+  } catch (e) {
+    $('#client-options').innerHTML = '<div class="text-center py-8 text-red-400">Failed to load templates</div>';
+  }
+}
+
+function loadTemplateList(templates) {
+  const container = $('#template-options');
+  container.innerHTML = '';
+  templates.forEach(tpl => {
+    const card = document.createElement('div');
+    card.className = 'cursor-pointer p-4 rounded-xl border border-brand-border hover:border-brand-cta/50 transition-all duration-200 bg-brand-bg/50 hover:bg-brand-bg flex items-center gap-3';
+    card.innerHTML = `<span class="font-mono text-sm">${tpl}</span>`;
+    card.onclick = () => {
+      $$('#template-options > div').forEach(el => el.classList.remove('border-brand-cta', 'bg-brand-bg'));
+      card.classList.add('border-brand-cta', 'bg-brand-bg');
+      state.template = tpl;
+      enableBtn('#next-2', true);
+    };
+    container.appendChild(card);
+  });
+}
+
+// ── Navigation ──
+$('#next-1').onclick = () => { showStep(2); };
+$('#next-2').onclick = () => {
+  // Auto-fill default filename
+  const stem = state.template.replace(/\.(conf|yaml)$/, '');
+  const ext = state.client === 'Surge' ? '.conf' : '.yaml';
+  const defName = `${stem}.filled${ext}`;
+  const inp = $('#out-filename');
+  if (!inp.value || inp.value === defName || inp.dataset.lastStem !== stem) {
+    inp.value = defName;
+    inp.dataset.lastStem = stem;
+  }
+  showStep(3);
+};
+$('#back-2').onclick = () => { showStep(1); };
+$('#back-3').onclick = () => { showStep(2); };
+
+$('#next-3').onclick = async () => {
+  state.subUrl = $('#sub-url').value.trim();
+  let fname = $('#out-filename').value.trim();
+  if (fname) {
+    const ext = state.client === 'Surge' ? '.conf' : '.yaml';
+    if (!fname.endsWith(ext)) fname += ext;
+  }
+  state.filename = fname || undefined;
+  if (!state.subUrl) return;
+  showStep(4);
+  await generateConfig();
+};
+
+$('#back-4').onclick = () => {
+  state = { step: 1, client: null, template: null, subUrl: '', blob: null, filename: '' };
+  $('#sub-url').value = '';
+  $('#out-filename').value = '';
+  $('#gen-loading').classList.add('hidden');
+  $('#gen-error').classList.add('hidden');
+  $('#gen-success').classList.add('hidden');
+  enableBtn('#next-1', false);
+  enableBtn('#next-2', false);
+  showStep(1);
+};
+
+$('#btn-download').onclick = () => { triggerDownload(); };
+
+// ── Generate ──
+async function generateConfig() {
+  $('#gen-loading').classList.remove('hidden');
+  $('#gen-error').classList.add('hidden');
+  $('#gen-success').classList.add('hidden');
+
+  try {
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client: state.client, template: state.template, sub_url: state.subUrl, filename: state.filename })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Generation failed');
+    }
+    // Store the blob for download
+    state.blob = await res.blob();
+    if (!state.filename) {
+      const hdr = res.headers.get('Content-Disposition');
+      const m = hdr?.match(/filename[^=]*=("?)([^";]+)\1/);
+      state.filename = m?.[2] || 'config.conf';
+    }
+    $('#gen-filename').textContent = state.filename;
+    $('#gen-loading').classList.add('hidden');
+    $('#gen-success').classList.remove('hidden');
+  } catch (e) {
+    $('#gen-loading').classList.add('hidden');
+    $('#gen-error').classList.remove('hidden');
+    $('#gen-error-msg').textContent = e.message;
+  }
+}
+
+async function triggerDownload() {
+  if (!state.blob) return;
+
+  let saved = false;
+  // File System Access API - natively supports Unicode/emoji filenames
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: state.filename
+      });
+      const writable = await handle.createWritable();
+      await writable.write(state.blob);
+      await writable.close();
+      saved = true;
+    } catch (e) {
+      // AbortError = user cancelled; other errors fall through to <a> fallback
+      if (e.name === 'AbortError') return;
+    }
+  } else {
+    // Fallback: classic <a> download
+    const file = new File([state.blob], state.filename, { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = state.filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    saved = true;
+  }
+
+  if (saved) {
+    $('#dl-icon').innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />';
+    $('#dl-text').textContent = 'Download Again';
+    $('#dl-done').classList.remove('hidden');
+  }
+}
+
+// ── Init ──
+loadTemplates();
+showStep(1);
+</script>
+</body>
+</html>
