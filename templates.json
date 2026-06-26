@@ -1,0 +1,9 @@
+{
+  "Surge": {
+    "Surge2026.conf": "https://raw.githubusercontent.com/0xMario27/Stencil/main/Surge/Surge2026.conf",
+    "Surge2026_iOS.conf": "https://raw.githubusercontent.com/0xMario27/Stencil/main/Surge/Surge2026_iOS.conf"
+  },
+  "Stash": {
+    "StashProMax.yaml": "https://raw.githubusercontent.com/0xMario27/Stencil/main/Stash/StashProMax.yaml"
+  }
+}
