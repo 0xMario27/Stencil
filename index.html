@@ -20,7 +20,6 @@ tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['IBM Plex San
 <div class="flex items-center gap-3"><div class="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-cta to-emerald-400 flex items-center justify-center"><svg class="w-5 h-5 text-brand-bg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg></div><span class="font-semibold text-lg">Stencil<span class="text-brand-cta">.</span></span></div>
 <div class="flex items-center gap-4 text-sm text-brand-muted">
 <a href="https://github.com/0xMario27/Stencil" target="_blank" class="hover:text-brand-text transition-colors duration-200 cursor-pointer inline-flex items-center gap-1.5"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>GitHub</a>
-<span id="proxy-status" class="text-xs cursor-pointer text-brand-cta" title="Click to change CORS proxy">⚡ proxy</span>
 </div></div></nav>
 
 <main class="pt-28 pb-16 px-4 max-w-2xl mx-auto">
@@ -46,15 +45,6 @@ tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['IBM Plex San
 
 <footer class="text-center py-8 text-brand-muted text-sm"><p>Stencil Config Generator · <span class="font-mono text-xs text-brand-cta/70">static v2.0</span> · runs in your browser</p></footer>
 
-<!-- Proxy config modal -->
-<div id="proxy-modal" class="hidden fixed inset-0 z-[100] bg-brand-bg/80 backdrop-blur-sm flex items-center justify-center p-4">
-<div class="bg-brand-surface border border-brand-border rounded-2xl p-6 max-w-md w-full shadow-2xl">
-<h3 class="text-lg font-semibold mb-2">CORS Proxy URL</h3>
-<p class="text-brand-muted text-sm mb-4">Enter your Cloudflare Worker URL to proxy subscription requests.</p>
-<input type="url" id="proxy-url" placeholder="https://your-worker.workers.dev" class="w-full px-4 py-2.5 rounded-xl bg-brand-bg border border-brand-border focus:border-brand-cta outline-none text-sm text-brand-text mb-4">
-<div class="flex gap-3 justify-end"><button id="proxy-cancel" class="px-4 py-2 rounded-xl bg-brand-border/50 hover:bg-brand-border text-brand-text text-sm font-medium cursor-pointer">Cancel</button><button id="proxy-save" class="px-4 py-2 rounded-xl bg-brand-cta hover:bg-brand-cta-hover text-brand-bg text-sm font-semibold cursor-pointer">Save & Test</button></div>
-<div id="proxy-test-result" class="hidden mt-3 text-sm"></div>
-</div></div>
 
 <script>
 // ──────────────────────────────────────────────
@@ -215,11 +205,12 @@ let state = { step: 1, client: null, template: null, subUrl: '', filename: '', b
 
 function showStep(n) {
   for (let i = 1; i <= 4; i++) $(`#step-${i}`).classList.toggle('hidden', i !== n);
+  const base = 'step-dot w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300';
   $$('.step-dot').forEach(d => {
     const s = +d.dataset.step;
-    if (s < n) d.className = d.className.replace(/bg-\S+/, 'bg-brand-border/30').replace(/text-\S+/, 'text-brand-muted');
-    else if (s === n) d.className = d.className.replace(/bg-\S+/, 'bg-brand-cta').replace(/text-\S+/, 'text-brand-bg').replace(/shadow-\S+/, 'shadow-lg shadow-brand-cta/25');
-    else d.className = d.className.replace(/bg-\S+/, 'bg-brand-border').replace(/text-\S+/, 'text-brand-muted').replace(/shadow-\S+/, '');
+    if (s < n)      d.className = base + ' bg-brand-border/30 text-brand-muted';
+    else if (s === n) d.className = base + ' bg-brand-cta text-brand-bg shadow-lg shadow-brand-cta/25';
+    else            d.className = base + ' bg-brand-border text-brand-muted';
   });
   state.step = n; window.scrollTo({top: 0, behavior: 'smooth'});
 }
@@ -360,31 +351,6 @@ async function triggerDownload() {
     $('#dl-done').classList.remove('hidden');
   }
 }
-
-// ──────────────────────────────────────────────
-// PROXY CONFIGURATION
-// ──────────────────────────────────────────────
-$('#proxy-status').onclick = () => { $('#proxy-modal').classList.remove('hidden'); $('#proxy-url').value = PROXY; };
-$('#proxy-cancel').onclick = () => $('#proxy-modal').classList.add('hidden');
-$('#proxy-save').onclick = async () => {
-  const url = $('#proxy-url').value.trim();
-  PROXY = url;
-  localStorage.setItem('stencil_proxy', url);
-  if (url) {
-    try {
-      await proxyFetch('https://httpbin.org/get', 'Stencil/1.0');
-      $('#proxy-test-result').className = 'mt-3 text-sm text-brand-cta'; $('#proxy-test-result').textContent = '✓ Proxy working';
-      $('#proxy-status').classList.remove('text-brand-muted'); $('#proxy-status').classList.add('text-brand-cta');
-    } catch(e) {
-      $('#proxy-test-result').className = 'mt-3 text-sm text-red-400'; $('#proxy-test-result').textContent = '⚠ Proxy test failed: ' + e.message;
-      $('#proxy-status').classList.add('text-brand-muted'); $('#proxy-status').classList.remove('text-brand-cta');
-    }
-    $('#proxy-test-result').classList.remove('hidden');
-  } else {
-    $('#proxy-modal').classList.add('hidden');
-    $('#proxy-status').classList.remove('text-brand-cta'); $('#proxy-status').classList.add('text-brand-muted');
-  }
-};
 
 showStep(1);
 </script>
