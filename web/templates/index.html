@@ -240,10 +240,12 @@ async function loadTemplates() {
     const container = $('#client-options');
     container.innerHTML = '';
     Object.keys(data).forEach(client => {
+      const appLinks = { Surge: 'https://nssurge.com/', Stash: 'https://apps.apple.com/app/stash/id1596063349', ClashMac: 'https://github.com/clash-verge-rev/clash-verge-rev' };
+      const link = appLinks[client] || '#';
       const card = document.createElement('div');
       card.className = 'cursor-pointer p-6 rounded-xl border-2 border-brand-border hover:border-brand-cta/50 transition-colors duration-200 bg-brand-bg/50 hover:bg-brand-bg';
       card.innerHTML = `
-        <div class="text-2xl font-bold font-mono mb-1">${client}</div>
+        <div class="flex items-center justify-between mb-1"><span class="text-2xl font-bold font-mono">${client}</span><a href="${link}" target="_blank" class="text-xs text-brand-muted hover:text-brand-cta transition-colors ml-2 flex-shrink-0" onclick="event.stopPropagation()" title="Download ${client}">Download ↗</a></div>
         <div class="text-sm text-brand-muted">${data[client].length} template(s)</div>
       `;
       card.onclick = () => {
