@@ -240,7 +240,7 @@ async function loadTemplates() {
     const container = $('#client-options');
     container.innerHTML = '';
     Object.keys(data).forEach(client => {
-      const appLinks = { Surge: 'https://nssurge.com/', Stash: 'https://apps.apple.com/app/stash/id1596063349', ClashMac: 'https://github.com/clash-verge-rev/clash-verge-rev' };
+      const appLinks = { Surge: 'https://nssurge.com/', Stash: 'https://stash.ws/', ClashMac: 'https://clashmac.app/' };
       const link = appLinks[client] || '#';
       const card = document.createElement('div');
       card.className = 'cursor-pointer p-6 rounded-xl border-2 border-brand-border hover:border-brand-cta/50 transition-colors duration-200 bg-brand-bg/50 hover:bg-brand-bg';
