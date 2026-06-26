@@ -211,15 +211,28 @@ function enBtn(id, on) {
 }
 
 // Load client options
-// Template manifest + cache
+// Template manifest + cache (fetched live from GitHub API)
 let tplManifest = {};
 let tplCache = {};
+
 (async function init() {
-  try {
-    const res = await fetch('templates.json');
-    tplManifest = await res.json();
-  } catch(e) {
-    tplManifest = { Surge: {}, Stash: {} };
+  const API = 'https://api.github.com/repos/0xMario27/Stencil/contents';
+  const configs = [
+    { client: 'Surge', dir: 'Surge', ext: '.conf' },
+    { client: 'Stash', dir: 'Stash', ext: '.yaml' }
+  ];
+  for (const { client, dir, ext } of configs) {
+    try {
+      const res = await fetch(`${API}/${dir}`);
+      const files = await res.json();
+      const tpls = {};
+      for (const f of files) {
+        if (f.name.endsWith(ext) && !f.name.includes('.filled.') && !f.name.startsWith('.')) {
+          tpls[f.name] = f.download_url;
+        }
+      }
+      if (Object.keys(tpls).length) tplManifest[client] = tpls;
+    } catch(e) { /* skip unavailable client */ }
   }
   const c = $('#client-options');
   for (const client of Object.keys(tplManifest)) {
