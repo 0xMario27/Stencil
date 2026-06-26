@@ -8,4 +8,5 @@ services:
     volumes:
       - ./Surge:/app/Surge
       - ./Stash:/app/Stash
+      - ./ClashMac:/app/ClashMac
     restart: unless-stopped

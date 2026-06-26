@@ -13,6 +13,7 @@ COPY web/templates/ ./templates/
 # Copy templates for generation
 COPY Surge/ ./Surge/
 COPY Stash/ ./Stash/
+COPY ClashMac/ ./ClashMac/
 
 EXPOSE 5000
 
