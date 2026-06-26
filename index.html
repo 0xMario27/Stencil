@@ -216,7 +216,8 @@ let tplCache = {};
   const API = 'https://api.github.com/repos/0xMario27/Stencil/contents';
   const configs = [
     { client: 'Surge', dir: 'Surge', ext: '.conf' },
-    { client: 'Stash', dir: 'Stash', ext: '.yaml' }
+    { client: 'Stash', dir: 'Stash', ext: '.yaml' },
+    { client: 'ClashMac', dir: 'ClashMac', ext: '.yaml' }
   ];
   for (const { client, dir, ext } of configs) {
     try {
@@ -312,7 +313,7 @@ async function doGenerate() {
     let subText = await proxyFetch(state.subUrl, ua);
 
     // Stash fallback: retry with v2rayN UA
-    if (state.client === 'Stash') {
+    if (state.client !== 'Surge') {
       let clash = extractStashClash(subText);
       if (!clash.trim()) {
         try { subText = await proxyFetch(state.subUrl, 'v2rayN/6.45'); } catch(e) {}
