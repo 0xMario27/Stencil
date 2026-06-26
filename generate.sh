@@ -32,58 +32,18 @@ banner() {
 choose() {
   local prompt="$1"; shift
   local items=("$@") n=${#items[@]} i
-
-  # ---- non-interactive: numbered input ----
-  if [ ! -t 0 ]; then
-    i=1
-    for it in "${items[@]}"; do printf "    ${c_ok}%d${c_o}) %s\n" "$i" "$it"; i=$((i+1)); done
-    local pick=""
-    while :; do
-      printf "  %s [1-%d] (default 1): " "$prompt" "$n"
-      read -r pick
-      [ -z "$pick" ] && pick=1
-      if [[ "$pick" =~ ^[0-9]+$ ]] && [ "$pick" -ge 1 ] && [ "$pick" -le "$n" ]; then
-        REPLY_ITEM="${items[$((pick-1))]}"; return 0
-      fi
-      echo -e "  ${c_e}Invalid choice, try again${c_o}"
-    done
-  fi
-
-  # ---- real terminal: arrow-key selection ----
-  local sel=0 key rest first=1
-  printf "  ${c_d}%s (↑/↓ to move, Enter to confirm)${c_o}\n" "$prompt"
-  printf '\033[?25l'                          # hide cursor
-  trap "printf '\033[?25h'" RETURN            # restore cursor on exit
+  i=1
+  for it in "${items[@]}"; do printf "    \033[1;32m%d\033[0m) %s\n" "$i" "$it"; i=$((i+1)); done
+  local pick=""
   while :; do
-    if [ "$first" -eq 1 ]; then first=0; else printf '\033[%dA' "$n"; fi   # move up N lines
-    for i in "${!items[@]}"; do
-      printf '\033[2K\r'                       # clear line
-      if [ "$i" -eq "$sel" ]; then
-        printf "  ${c_ok}❯ %s${c_o}\n" "${items[$i]}"
-      else
-        printf "    ${c_d}%s${c_o}\n" "${items[$i]}"
-      fi
-    done
-    key=''; IFS= read -rsn1 key || true
-    if [ "$key" = $'\033' ]; then              # arrow keys: read [ and A/B/C/D (byte by byte)
-      local k2='' k3=''
-      IFS= read -rsn1 -t 1 k2 || true        # tolerate macOS built-in bash 3.2
-      IFS= read -rsn1 -t 1 k3 || true
-      case "$k3" in
-        A) sel=$(( (sel - 1 + n) % n )) ;;     # up
-        B) sel=$(( (sel + 1) % n )) ;;         # down
-      esac
-      continue
+    printf "  %s [1-%d] (default 1): " "$prompt" "$n"
+    read -r pick
+    [ -z "$pick" ] && pick=1
+    if [[ "$pick" =~ ^[0-9]+$ ]] && [ "$pick" -ge 1 ] && [ "$pick" -le "$n" ]; then
+      REPLY_ITEM="${items[$((pick-1))]}"; return 0
     fi
-    case "$key" in
-      k|w) sel=$(( (sel - 1 + n) % n )) ;;
-      j|s) sel=$(( (sel + 1) % n )) ;;
-      ''|$'\n'|$'\r') break ;;
-      [1-9]) if [ "$key" -le "$n" ]; then sel=$((key - 1)); fi ;;
-    esac
+    echo -e "  \033[1;31mInvalid choice, try again\033[0m"
   done
-  printf '\033[?25h'                           # restore cursor
-  REPLY_ITEM="${items[$sel]}"
 }
 
 # ---------- Surge generator ----------
@@ -135,15 +95,11 @@ _stash_group() {
   while IFS= read -r x; do [ -n "$x" ] && joined="$joined\"$x\", "; done <<< "$sel"
   joined="${joined%, }"
   # Remove use:[SF] & filter:..., then replace proxies: null with the node list
-  line="$(printf '%s' "$line" | sed "s/, *use: \[SF\]//; s/, *filter: '[^']*'//; s/, *filter: [^,}]*//")"
+  line="$(echo "$line" | sed "s/, *use: \[SF\]//; s/, *filter: '[^']*'//; s/, *filter: [^,}]*//")"
   line="${line/proxies: null/proxies: [$joined]}"
   printf '%s' "$line"
 }
 
-# URL-decode (%E9.. → UTF-8 bytes)
-_urldec() { local s="${1//+/ }"; printf '%b' "${s//%/\\x}"; }
-# Extract a query param value from a=b&c=d string
-_qval() { printf '%s' "$1" | tr '&' '\n' | sed -n "s/^$2=//p" | head -1; }
 # Convert base64 URI subscription entries (xxx:// links) to Clash flow-map format.
 # Currently implements: anytls.
 _uri2clash() {
@@ -158,8 +114,8 @@ _uri2clash() {
         query=""; case "$rest" in *"?"*) query="${rest#*\?}";; esac
         rest="${rest%%\?*}"; rest="${rest%%/*}"          # remaining: host:port
         host="${rest%%:*}"; port="${rest##*:}"
-        sni="$(_qval "$query" sni)"; fp="$(_qval "$query" fp)"; insec="$(_qval "$query" insecure)"
-        if [ -n "$name" ]; then name="$(_urldec "$name")"; else name="$host"; fi
+        sni="$(printf '%s' "$query" | tr '&' '\n' | sed -n "s/^sni=//p" | head -1)"; fp="$(printf '%s' "$query" | tr '&' '\n' | sed -n "s/^fp=//p" | head -1)"; insec="$(printf '%s' "$query" | tr '&' '\n' | sed -n "s/^insecure=//p" | head -1)"
+        if [ -n "$name" ]; then name="${name//+/ }"; name="$(printf '%b' "${name//%/\\x}")"; else name="$host"; fi
         o="  - {name: \"$name\", type: anytls, server: $host, port: $port, password: \"$pass\", udp: true"
         if [ -n "$sni" ]; then o="$o, sni: $sni"; fi
         if [ -n "$fp" ];  then o="$o, client-fingerprint: $fp"; fi
