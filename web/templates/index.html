@@ -171,6 +171,11 @@
           <span id="dl-text">Download Config</span>
         </button>
         <p id="dl-done" class="hidden text-brand-cta text-sm mt-3 font-medium">✓ Saved successfully</p>
+        <div id="import-actions" class="flex items-center justify-center gap-3 mt-4">
+          <button id="btn-copy" class="px-5 py-2 rounded-xl bg-brand-border/50 hover:bg-brand-border text-brand-text text-sm font-medium cursor-pointer transition-colors">📋 Copy</button>
+          <button id="btn-share" class="px-5 py-2 rounded-xl bg-brand-border/50 hover:bg-brand-border text-brand-text text-sm font-medium cursor-pointer transition-colors hidden">📤 Share</button>
+        </div>
+        <p id="copy-done" class="hidden text-brand-cta text-xs mt-2">Copied!</p>
       </div>
 
       <div class="flex justify-start mt-8">
@@ -318,12 +323,16 @@ $('#back-4').onclick = () => {
   $('#gen-loading').classList.add('hidden');
   $('#gen-error').classList.add('hidden');
   $('#gen-success').classList.add('hidden');
+  $('#copy-done').classList.add('hidden');
   enableBtn('#next-1', false);
   enableBtn('#next-2', false);
   showStep(1);
 };
 
 $('#btn-download').onclick = () => { triggerDownload(); };
+$('#btn-copy').onclick = () => { copyConfig(); };
+$('#btn-share').onclick = () => { shareConfig(); };
+if (navigator.share) $('#btn-share').classList.remove('hidden');
 
 // ── Generate ──
 async function generateConfig() {
@@ -396,6 +405,20 @@ async function triggerDownload() {
     $('#dl-text').textContent = 'Download Again';
     $('#dl-done').classList.remove('hidden');
   }
+}
+
+async function copyConfig() {
+  if (!state.blob) return;
+  const text = await state.blob.text();
+  await navigator.clipboard.writeText(text);
+  $('#copy-done').classList.remove('hidden');
+  setTimeout(() => $('#copy-done').classList.add('hidden'), 2000);
+}
+
+async function shareConfig() {
+  if (!state.blob || !navigator.share) return;
+  const file = new File([state.blob], state.filename, { type: 'application/octet-stream' });
+  try { await navigator.share({ title: 'Stencil Config', files: [file] }); } catch(e) {}
 }
 
 // ── Init ──
