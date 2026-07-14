@@ -255,6 +255,47 @@ _clash2clash() {
     | sed -E 's/^[[:space:]]*-[[:space:]]*/  - /' || true
 }
 
+# ---- Smart fetcher with UA fallback ----
+# Returns format string (surge/clash/base64/error), writes to output file
+_fetch_sub() {
+  local url="$1" out="$2" ua fmt
+  # Try 1: Surge UA
+  ua="Surge iOS/3000 CFNetwork Darwin"
+  curl -fsSL -A "$ua" --max-time 30 "$url" -o "$out" 2>/dev/null && fmt="$(_detect_format "$out")" && { [ "$fmt" != "error" ] && echo "$fmt" && return 0; }
+  # Try 2: Clash UA
+  ua="ClashforWindows/0.20.39"
+  curl -fsSL -A "$ua" --max-time 30 "$url" -o "$out" 2>/dev/null && fmt="$(_detect_format "$out")" && { [ "$fmt" != "error" ] && echo "$fmt" && return 0; }
+  # Try 3: Default UA (gets base64)
+  curl -fsSL --max-time 30 "$url" -o "$out" 2>/dev/null && fmt="$(_detect_format "$out")" && { echo "$fmt" && return 0; }
+  # Try 4: v2rayN UA
+  ua="v2rayN/6.45"
+  curl -fsSL -A "$ua" --max-time 30 "$url" -o "$out" 2>/dev/null && fmt="$(_detect_format "$out")" && { echo "$fmt" && return 0; }
+  echo "error"
+  return 1
+}
+
+# ---- Format auto-detection ----
+# Returns: surge, clash, base64, or error
+_detect_format() {
+  local f="$1" head
+  [ ! -s "$f" ] && { echo "error"; return; }
+  head="$(head -c 2 "$f" | od -A n -t x1 | tr -d ' ')"
+
+  # Surge config: starts with [General] or has [Proxy] section
+  if grep -q '^\[Proxy\]' "$f" 2>/dev/null; then echo "surge"; return; fi
+  if grep -q '^\[General\]' "$f" 2>/dev/null; then echo "surge"; return; fi
+
+  # Clash YAML: contains proxies: key
+  if grep -q '^proxies:' "$f" 2>/dev/null; then echo "clash"; return; fi
+
+  # Base64: decodes to something with ://
+  local decoded
+  decoded="$(openssl base64 -d -A -in "$f" 2>/dev/null || true)"
+  if printf '%s' "$decoded" | grep -q '://'; then echo "base64"; return; fi
+
+  echo "error"
+}
+
 # ---------- Stash generator (inline nodes, no proxy-providers) ----------
 gen_stash() {
   local sub="$1" tpl="Stash/$2" out="result/$3"
