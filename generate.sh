@@ -162,6 +162,7 @@ _uri2clash() {
   done
   awk 'BEGIN { RS=""; FS="\n" }
   {
+    delete v
     for (i=1; i<=NF; i++) { eq=index($i,"="); if(eq>0){v[substr($i,1,eq-1)]=substr($i,eq+1)} }
     if (v["name"] == "") next
     name=v["name"]; typ=v["type"]; host=v["server"]; port=v["port"]; pw=v["password"]
@@ -186,6 +187,7 @@ _uri2surge() {
   done
   awk 'BEGIN { RS=""; FS="\n" }
   {
+    delete v
     for (i=1; i<=NF; i++) { eq=index($i,"="); if(eq>0){v[substr($i,1,eq-1)]=substr($i,eq+1)} }
     if (v["name"] == "") next
     # Surge: Name = protocol, server, port, key=val, ...
