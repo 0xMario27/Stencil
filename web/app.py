@@ -110,7 +110,7 @@ def _parse_clash_line(line: str):
         return m.group(1) if m else ""
 
     def extract_bool(key):
-        m = re.search(rf'{key}\s*:\s*true', line)
+        m = re.search(rf'["\']?{key}["\']?\s*:\s*true', line)
         return m is not None
 
     name = (re.search(r'"name"\s*:\s*"([^"]*)"', line) or
@@ -167,7 +167,7 @@ def ir_to_surge(nodes):
         if n.get("skip_cert_verify"):
             parts.append("skip-cert-verify=true")
         if n.get("client_fingerprint"):
-            parts.append("tfo=true")
+            parts.append(f'client-fingerprint={n["client_fingerprint"]}')
         if n.get("peer"):
             parts.append(f'tls-hostname={n["peer"]}')
         lines.append(", ".join(parts))
@@ -359,13 +359,7 @@ def gen_stash(template_name: str, sub_url: str) -> tuple[bytes, str]:
         ir_nodes = parse_uri_list(decoded)
         clash = ir_to_clash(ir_nodes)
     elif fmt == "surge":
-        # Re-fetch with base64 fallback since Surge->IR parsing isn't implemented yet
-        decoded = base64.b64decode(raw_text.strip()).decode("utf-8", errors="ignore")
-        ir_nodes = parse_uri_list(decoded)
-        if ir_nodes:
-            clash = ir_to_clash(ir_nodes)
-        else:
-            clash = ""
+        raise ValueError("Surge-format subscription cannot be converted to Stash format directly. Please use a subscription that returns Clash YAML or base64 (v2ray) format.")
     else:
         raise ValueError("No usable proxy nodes found for Stash")
 
