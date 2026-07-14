@@ -168,7 +168,7 @@ _uri_node_parse() {
 
 # ---- URI list -> Clash YAML ----
 _uri2clash() {
-  local ir tmp line key val name typ host port pw sni fp peer net skv
+  local ir tmp
   ir="$(mktemp)"; tmp="$(mktemp)"; trap 'rm -f "$ir" "$tmp"' RETURN
   while IFS= read -r line; do
     _uri_node_parse "$line" >> "$ir" 2>/dev/null || true
@@ -193,7 +193,7 @@ _uri2clash() {
 
 # ---- URI list -> Surge conf lines ----
 _uri2surge() {
-  local ir line
+  local ir
   ir="$(mktemp)"; trap 'rm -f "$ir"' RETURN
   while IFS= read -r line; do
     _uri_node_parse "$line" >> "$ir" 2>/dev/null || true
@@ -208,7 +208,7 @@ _uri2surge() {
     printf ", udp-relay=true"
     if (v["sni"] != "") printf ", sni=%s", v["sni"]
     if (v["skip-cert-verify"] == "true") printf ", skip-cert-verify=true"
-    if (v["client-fingerprint"] != "") printf ", tfo=true"
+    if (v["client-fingerprint"] != "") printf ", client-fingerprint=%s", v["client-fingerprint"]
     if (v["peer"] != "") printf ", tls-hostname=%s", v["peer"]
     printf "\n"
   }' "$ir"
@@ -255,7 +255,7 @@ _clash2surge() {
     printf ", udp-relay=true"
     if (sni != "") printf ", sni=%s", sni
     if (skv == "true") printf ", skip-cert-verify=true"
-    if (fp != "") printf ", tfo=true"
+    if (fp != "") printf ", client-fingerprint=%s", fp
     if (peer != "") printf ", tls-hostname=%s", peer
     printf "\n"
   }'
@@ -290,9 +290,8 @@ _fetch_sub() {
 # ---- Format auto-detection ----
 # Returns: surge, clash, base64, or error
 _detect_format() {
-  local f="$1" head
+  local f="$1"
   [ ! -s "$f" ] && { echo "error"; return; }
-  head="$(head -c 2 "$f" | od -A n -t x1 | tr -d ' ')"
 
   # Surge config: starts with [General] or has [Proxy] section
   if grep -q '^\[Proxy\]' "$f" 2>/dev/null; then echo "surge"; return; fi

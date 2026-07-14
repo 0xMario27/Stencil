@@ -191,6 +191,8 @@ def ir_to_clash(nodes):
             entry += f', client-fingerprint: {n["client_fingerprint"]}'
         if n.get("peer"):
             entry += f', peer: {n["peer"]}'
+        if n.get("network"):
+            entry += f', network: {n["network"]}'
         entries.append(entry + "}")
     return "\n".join(entries)
 
@@ -402,53 +404,6 @@ def gen_stash(template_name: str, sub_url: str) -> tuple[bytes, str]:
     stem = Path(template_name).stem
     filename = f"{stem}.filled.yaml"
     return output, filename
-
-
-def _uri2clash(text: str) -> str:
-    """Convert base64-decoded URI subscription entries to Clash flow format.
-    Handles: anytls://password@host:port/?params#name"""
-    result = []
-    for line in text.splitlines():
-        line = line.strip()
-        if not line.startswith("anytls://"):
-            continue
-        rest = line[len("anytls://"):]
-        # Split password and remainder
-        if "@" not in rest:
-            continue
-        password, rest = rest.split("@", 1)
-        # Extract name after # (URL-decoded)
-        name = ""
-        if "#" in rest:
-            rest, name = rest.split("#", 1)
-            name = unquote(name)
-        # Extract query string after ?
-        query = ""
-        if "?" in rest:
-            rest, query = rest.split("?", 1)
-        # Extract host:port (strip trailing /)
-        host_port = rest.split("/")[0]
-        if ":" in host_port:
-            host, port = host_port.split(":", 1)
-        else:
-            host, port = host_port, "443"
-        # Parse query params
-        sni = fp = ""
-        for p in query.split("&"):
-            if p.startswith("sni="):
-                sni = p[4:]
-            elif p.startswith("fp="):
-                fp = p[3:]
-        if not name:
-            name = host
-        entry = f'  - {{name: "{name}", type: anytls, server: {host}, port: {port}, password: "{password}", udp: true'
-        if sni:
-            entry += f", sni: {sni}"
-        if fp:
-            entry += f", client-fingerprint: {fp}"
-        entry += "}"
-        result.append(entry)
-    return "\n".join(result)
 
 
 def _rewrite_stash_group(line: str, names: list[str]) -> str:
