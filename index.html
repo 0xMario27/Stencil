@@ -171,6 +171,54 @@ function parseClashLine(line) {
   return node;
 }
 
+function parseSurgeToIR(text) {
+  const nodes = [];
+  let inProxy = false;
+  for (const line of text.split('\n')) {
+    const l = line.trim();
+    if (!l || l.startsWith('#')) continue;
+    if (l.startsWith('[Proxy]')) { inProxy = true; continue; }
+    if (inProxy && l.startsWith('[')) { inProxy = false; continue; }
+    if (!inProxy) continue;
+    const eq = l.indexOf('=');
+    if (eq === -1) continue;
+    const name = l.slice(0, eq).trim();
+    let rest = l.slice(eq + 1).trim();
+
+    if (rest === 'direct') {
+      nodes.push({ type: 'direct', name, server: 'localhost', port: 0, password: '', udp: false });
+      continue;
+    }
+
+    const parts = rest.split(/,\s*/);
+    if (parts.length < 3) continue;
+    const protocol = parts[0];
+    const server = parts[1];
+    const port = parts[2];
+
+    const node = { type: protocol, name, server, port: parseInt(port) || 0, password: '', udp: true };
+    for (let i = 3; i < parts.length; i++) {
+      const p = parts[i];
+      if (p === 'udp-relay=true') { node.udp = true; }
+      else if (p === 'skip-cert-verify=true') { node.skip_cert_verify = true; }
+      else if (p === 'tfo=true') { /* skip */ }
+      else {
+        const eq2 = p.indexOf('=');
+        if (eq2 > -1) {
+          const k = p.slice(0, eq2), v = p.slice(eq2 + 1);
+          if (k === 'password') node.password = v;
+          else if (k === 'sni') node.sni = v;
+          else if (k === 'tls-hostname') node.sni = v;
+          else if (k === 'ws' && v === 'true') node.network = 'ws';
+          else if (k === 'h2' && v === 'true') node.network = 'h2';
+        }
+      }
+    }
+    nodes.push(node);
+  }
+  return nodes;
+}
+
 function irToSurge(nodes) {
   return nodes.map(n => {
     const parts = [`${n.name} = ${n.type}, ${n.server}, ${n.port}`];
@@ -476,7 +524,8 @@ async function doGenerate() {
       } else if (sub.format === 'base64') {
         subText = sub.text;
       } else if (sub.format === 'surge') {
-        throw new Error('Cannot convert Surge config to Stash format directly');
+        const ir = parseSurgeToIR(sub.text);
+        subText = irToClash(ir);
       } else {
         throw new Error('No usable nodes found');
       }
