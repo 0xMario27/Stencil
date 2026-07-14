@@ -100,30 +100,103 @@ _stash_group() {
   printf '%s' "$line"
 }
 
-# Convert base64 URI subscription entries (xxx:// links) to Clash flow-map format.
-# Currently implements: anytls.
-_uri2clash() {
-  local line rest pass name host port query sni fp insec o
-  while IFS= read -r line; do
-    line="${line%$'\r'}"                              # strip DOS line-ending \r
-    case "$line" in
-      anytls://*)
-        rest="${line#anytls://}"
-        pass="${rest%%@*}"; rest="${rest#*@}"
-        name=""; case "$rest" in *"#"*) name="${rest#*#}"; rest="${rest%%#*}";; esac
-        query=""; case "$rest" in *"?"*) query="${rest#*\?}";; esac
-        rest="${rest%%\?*}"; rest="${rest%%/*}"          # remaining: host:port
-        host="${rest%%:*}"; port="${rest##*:}"
-        sni="$(printf '%s' "$query" | tr '&' '\n' | sed -n "s/^sni=//p" | head -1)"; fp="$(printf '%s' "$query" | tr '&' '\n' | sed -n "s/^fp=//p" | head -1)"; insec="$(printf '%s' "$query" | tr '&' '\n' | sed -n "s/^insecure=//p" | head -1)"
-        if [ -n "$name" ]; then name="${name//+/ }"; name="$(printf '%b' "${name//%/\\x}")"; else name="$host"; fi
-        o="  - {name: \"$name\", type: anytls, server: $host, port: $port, password: \"$pass\", udp: true"
-        if [ -n "$sni" ]; then o="$o, sni: $sni"; fi
-        if [ -n "$fp" ];  then o="$o, client-fingerprint: $fp"; fi
-        if [ "$insec" = "1" ]; then o="$o, skip-cert-verify: true"; fi
-        printf '%s}\n' "$o"
-        ;;
+# ---- shared URI node parser ----
+# Parses a single URI line into KEY=VALUE IR lines (one node)
+# Supported schemes: trojan, anytls, hysteria2
+_uri_node_parse() {
+  local line="$1" scheme rest auth host port query
+  line="${line%$'\r'}"
+  scheme="${line%%://*}"; rest="${line#$scheme://}"
+  # Extract password (everything before @)
+  auth="${rest%%@*}"
+  [ "$auth" = "$rest" ] && return 1
+  rest="${rest#*@}"
+  # Extract fragment name after #
+  local name=""
+  case "$rest" in *"#"*) name="${rest#*#}"; rest="${rest%%#*}" ;; esac
+  # URL-decode name (printf %b handles \xHH)
+  name="$(printf '%s' "$name" | sed 's/+/ /g;s/%\([0-9a-fA-F][0-9a-fA-F]\)/\\x\1/g')"
+  name="$(printf '%b' "$name")"
+  # Extract query string after ?
+  query=""
+  case "$rest" in *"?"*) query="${rest#*\?}"; rest="${rest%%\?*}" ;; esac
+  # Extract host:port (strip trailing /)
+  rest="${rest%%/*}"
+  host="${rest%%:*}"; port="${rest##*:}"
+  [ "$port" = "$host" ] && port="443"
+  [ -z "$name" ] && name="$host"
+
+  # Parse query params
+  local sni="" fp="" insec="" peer="" ptyp="" IFS='&' p
+  for p in $query; do
+    case "$p" in
+      sni=*) sni="${p#sni=}" ;;
+      fp=*) fp="${p#fp=}" ;;
+      insecure=*) insec="${p#insecure=}" ;;
+      allowInsecure=*) insec="${p#allowInsecure=}" ;;
+      peer=*) peer="${p#peer=}" ;;
+      type=*) ptyp="${p#type=}" ;;
     esac
   done
+
+  printf 'name=%s\n' "$name"
+  printf 'type=%s\n' "$scheme"
+  printf 'server=%s\n' "$host"
+  printf 'port=%s\n' "$port"
+  printf 'password=%s\n' "$auth"
+  printf 'udp=%s\n' "true"
+  [ -n "$sni" ]  && printf 'sni=%s\n' "$sni"
+  [ "$insec" = "1" ] && printf 'skip-cert-verify=%s\n' "true"
+  [ -n "$fp" ]   && printf 'client-fingerprint=%s\n' "$fp"
+  [ -n "$peer" ] && printf 'peer=%s\n' "$peer"
+  [ -n "$ptyp" ] && printf 'network=%s\n' "$ptyp"
+  printf '\n'  # blank line terminates node block
+}
+
+# ---- URI list -> Clash YAML ----
+_uri2clash() {
+  local ir tmp line key val name typ host port pw sni fp peer net skv
+  ir="$(mktemp)"; tmp="$(mktemp)"; trap 'rm -f "$ir" "$tmp"' RETURN
+  while IFS= read -r line; do
+    _uri_node_parse "$line" >> "$ir" 2>/dev/null || true
+  done
+  awk 'BEGIN { RS=""; FS="\n" }
+  {
+    for (i=1; i<=NF; i++) { eq=index($i,"="); if(eq>0){v[substr($i,1,eq-1)]=substr($i,eq+1)} }
+    if (v["name"] == "") next
+    name=v["name"]; typ=v["type"]; host=v["server"]; port=v["port"]; pw=v["password"]
+    entry = sprintf("  - {name: \"%s\", type: %s, server: %s, port: %s, password: \"%s\"", name, typ, host, port, pw)
+    entry = entry ", udp: true"
+    if (v["sni"] != "") entry = entry ", sni: " v["sni"]
+    if (v["skip-cert-verify"] == "true") entry = entry ", skip-cert-verify: true"
+    if (v["client-fingerprint"] != "") entry = entry ", client-fingerprint: " v["client-fingerprint"]
+    if (v["peer"] != "") entry = entry ", peer: " v["peer"]
+    if (v["network"] != "") entry = entry ", network: " v["network"]
+    entry = entry "}"
+    print entry
+  }' "$ir"
+}
+
+# ---- URI list -> Surge conf lines ----
+_uri2surge() {
+  local ir line
+  ir="$(mktemp)"; trap 'rm -f "$ir"' RETURN
+  while IFS= read -r line; do
+    _uri_node_parse "$line" >> "$ir" 2>/dev/null || true
+  done
+  awk 'BEGIN { RS=""; FS="\n" }
+  {
+    for (i=1; i<=NF; i++) { eq=index($i,"="); if(eq>0){v[substr($i,1,eq-1)]=substr($i,eq+1)} }
+    if (v["name"] == "") next
+    # Surge: Name = protocol, server, port, key=val, ...
+    printf "%s = %s, %s, %s, password=%s", v["name"], v["type"], v["server"], v["port"], v["password"]
+    printf ", udp-relay=true"
+    if (v["sni"] != "") printf ", sni=%s", v["sni"]
+    if (v["skip-cert-verify"] == "true") printf ", skip-cert-verify=true"
+    if (v["client-fingerprint"] != "") printf ", tfo=true"
+    if (v["peer"] != "") printf ", tls-hostname=%s", v["peer"]
+    printf "\n"
+  }' "$ir"
 }
 
 # ---------- Stash generator (inline nodes, no proxy-providers) ----------
