@@ -201,6 +201,60 @@ _uri2surge() {
   }' "$ir"
 }
 
+# ---- Clash YAML proxies -> Surge conf lines ----
+_clash2surge() {
+  awk '
+  function getval(str, key,   s) {
+    if (match(str, key "[[:space:]]*:[[:space:]]*\047[^\047]*\047")) {
+      s = substr(str, RSTART, RLENGTH)
+      sub("^" key "[[:space:]]*:[[:space:]]*\047", "", s)
+      sub(/\047$/, "", s)
+      return s
+    }
+    if (match(str, key "[[:space:]]*:[[:space:]]*\"[^\"]*\"")) {
+      s = substr(str, RSTART, RLENGTH)
+      sub("^" key "[[:space:]]*:[[:space:]]*\"", "", s)
+      sub(/"$/, "", s)
+      return s
+    }
+    if (match(str, key "[[:space:]]*:[[:space:]]*[^ ,}]+")) {
+      s = substr(str, RSTART, RLENGTH)
+      sub("^" key "[[:space:]]*:[[:space:]]*", "", s)
+      return s
+    }
+    return ""
+  }
+  /^[[:space:]]*-[[:space:]]*\{/ {
+    name = getval($0, "name")
+    typ = getval($0, "type")
+    server = getval($0, "server")
+    port = getval($0, "port")
+    pw = getval($0, "password")
+    sni = getval($0, "sni")
+    skv = ""
+    if ($0 ~ /skip-cert-verify[[:space:]]*:[[:space:]]*true/)
+      skv = "true"
+    fp = getval($0, "client-fingerprint")
+    peer = getval($0, "peer")
+    if (name == "" || typ == "" || server == "") next
+    printf "%s = %s, %s, %s", name, typ, server, port
+    if (pw != "") printf ", password=%s", pw
+    printf ", udp-relay=true"
+    if (sni != "") printf ", sni=%s", sni
+    if (skv == "true") printf ", skip-cert-verify=true"
+    if (fp != "") printf ", tfo=true"
+    if (peer != "") printf ", tls-hostname=%s", peer
+    printf "\n"
+  }'
+}
+
+# ---- Clash YAML proxies -> keep as Clash YAML (identity) ----
+_clash2clash() {
+  awk '/^proxies:/{f=1;next} /^[a-zA-Z]/{f=0} f' \
+    | grep -E '^[[:space:]]*-[[:space:]]*\{' \
+    | sed -E 's/^[[:space:]]*-[[:space:]]*/  - /' || true
+}
+
 # ---------- Stash generator (inline nodes, no proxy-providers) ----------
 gen_stash() {
   local sub="$1" tpl="Stash/$2" out="result/$3"
