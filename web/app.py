@@ -312,7 +312,7 @@ def _count_nodes(text: str, fmt: str) -> int:
         return 0
     if fmt == "surge":
         return sum(1 for l in text.splitlines() if re.match(
-            r"^[^#\s].*=\s*(anytls|ss|ssr|trojan|vmess|vless|hysteria2?|tuic|http|https|socks5(-tls)?|snell|wireguard|direct)(\s*,|\s*$)", l))
+            r"^[^#\s].*=\s*(anytls|ss|trojan|vmess|vless|hysteria2?|tuic|http|https|socks5(-tls)?|snell|wireguard|ssh|h2|direct)(\s*,|\s*$)", l))
     elif fmt == "clash":
         in_p = False
         count = 0
@@ -407,7 +407,7 @@ def extract_surge_nodes(raw_text: str) -> list[str]:
         if not in_proxy:
             continue
         if re.match(
-            r"^[^#\s].*=\s*(anytls|ss|ssr|trojan|vmess|vless|hysteria2?|tuic|http|https|socks5(-tls)?|snell|wireguard|direct)(\s*,|\s*$)",
+            r"^[^#\s].*=\s*(anytls|ss|trojan|vmess|vless|hysteria2?|tuic|http|https|socks5(-tls)?|snell|wireguard|ssh|h2|direct)(\s*,|\s*$)",
             line,
         ):
             nodes.append(line)
