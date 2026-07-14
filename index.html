@@ -74,7 +74,7 @@ function extractSurgeNodes(text) {
     if (line.startsWith('[Proxy]')) { inProxy = true; continue; }
     if (inProxy && line.startsWith('[')) { inProxy = false; continue; }
     if (!inProxy) continue;
-    if (/^[^#\s].*=\s*(anytls|ss|ssr|trojan|vmess|vless|hysteria2?|tuic|http|https|socks5(-tls)?|snell|wireguard|direct)(\s*,|\s*$)/.test(line)) nodes.push(line);
+    if (/^[^#\s].*=\s*(anytls|ss|trojan|vmess|vless|hysteria2?|tuic|http|https|socks5(-tls)?|snell|wireguard|ssh|h2|direct)(\s*,|\s*$)/.test(line)) nodes.push(line);
   }
   return nodes;
 }
@@ -259,7 +259,7 @@ function detectFormat(text) {
 function countNodes(text, fmt) {
   if (!text || !text.trim()) return 0;
   if (fmt === 'surge') {
-    const re = /^[^#\s].*=\s*(anytls|ss|ssr|trojan|vmess|vless|hysteria2?|tuic|http|https|socks5(-tls)?|snell|wireguard|direct)(\s*,|\s*$)/;
+    const re = /^[^#\s].*=\s*(anytls|ss|trojan|vmess|vless|hysteria2?|tuic|http|https|socks5(-tls)?|snell|wireguard|ssh|h2|direct)(\s*,|\s*$)/;
     return text.split('\n').filter(l => re.test(l)).length;
   }
   if (fmt === 'clash') {
