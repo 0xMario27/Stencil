@@ -256,20 +256,55 @@ function detectFormat(text) {
   return 'error';
 }
 
+function countNodes(text, fmt) {
+  if (!text || !text.trim()) return 0;
+  if (fmt === 'surge') {
+    const re = /^[^#\s].*=\s*(anytls|ss|ssr|trojan|vmess|vless|hysteria2?|tuic|http|https|socks5(-tls)?|snell|wireguard|direct)(\s*,|\s*$)/;
+    return text.split('\n').filter(l => re.test(l)).length;
+  }
+  if (fmt === 'clash') {
+    let inP = false, count = 0;
+    for (const l of text.split('\n')) {
+      if (l.trim() === 'proxies:') { inP = true; continue; }
+      if (inP) { if (/^[a-zA-Z]/.test(l)) break; if (/^\s*-\s*\{/.test(l)) count++; }
+    }
+    return count;
+  }
+  if (fmt === 'base64') {
+    try {
+      const decoded = atob(text.replace(/\s/g, ''));
+      return decoded.split('\n').filter(l => l.includes('://')).length;
+    } catch(e) { return 0; }
+  }
+  return 0;
+}
+
 async function fetchSub(url) {
-  const uas = [
-    'Surge iOS/3000 CFNetwork Darwin',
-    'ClashforWindows/0.20.39',
-    '',
-    'v2rayN/6.45'
+  const configs = [
+    { label: 'default', ua: '' },
+    { label: 'Surge', ua: 'Surge iOS/3000 CFNetwork Darwin' },
+    { label: 'Clash', ua: 'ClashforWindows/0.20.39' },
+    { label: 'v2rayN', ua: 'v2rayN/6.45' }
   ];
-  for (const ua of uas) {
+  let best = { label: '', format: 'error', count: 0, text: '' };
+
+  for (const { label, ua } of configs) {
     try {
       const text = await proxyFetch(url, ua);
       const fmt = detectFormat(text);
-      if (fmt !== 'error') return { format: fmt, text };
+      if (fmt === 'error') continue;
+      const count = countNodes(text, fmt);
+      if (count > best.count) {
+        best = { label, format: fmt, count, text };
+      } else if (count === best.count && count > 0) {
+        if (label === 'default' && best.label !== 'default') {
+          best = { label, format: fmt, count, text };
+        }
+      }
     } catch(e) {}
   }
+
+  if (best.format !== 'error') return { format: best.format, text: best.text };
   throw new Error('Failed to fetch subscription with all fallback UAs');
 }
 
