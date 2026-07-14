@@ -306,24 +306,67 @@ def detect_format(text: str) -> str:
     return "error"
 
 
+def _count_nodes(text: str, fmt: str) -> int:
+    """Count parseable proxy nodes in a subscription response."""
+    if not text or not text.strip():
+        return 0
+    if fmt == "surge":
+        return sum(1 for l in text.splitlines() if re.match(
+            r"^[^#\s].*=\s*(anytls|ss|ssr|trojan|vmess|vless|hysteria2?|tuic|http|https|socks5(-tls)?|snell|wireguard|direct)(\s*,|\s*$)", l))
+    elif fmt == "clash":
+        in_p = False
+        count = 0
+        for l in text.splitlines():
+            if l.strip() == "proxies:":
+                in_p = True
+                continue
+            if in_p:
+                if re.match(r"^[a-zA-Z]", l):
+                    break
+                if re.match(r"^\s*-\s*\{", l):
+                    count += 1
+        return count
+    elif fmt == "base64":
+        try:
+            decoded = base64.b64decode(text.strip()).decode("utf-8")
+            return sum(1 for l in decoded.splitlines() if "://" in l)
+        except Exception:
+            return 0
+    return 0
+
+
 def fetch_sub(url: str):
-    """Fetch subscription with UA fallback. Returns (format, raw_text)."""
-    for ua in [
-        "Surge iOS/3000 CFNetwork Darwin",
-        "ClashforWindows/0.20.39",
-        "",
-        "v2rayN/6.45",
-    ]:
+    """Fetch subscription with UA fallback. Try all UAs, pick the one with most nodes.
+    Default UA breaks ties. Returns (format, raw_text)."""
+    ua_configs = [
+        ("default", ""),
+        ("Surge", "Surge iOS/3000 CFNetwork Darwin"),
+        ("Clash", "ClashforWindows/0.20.39"),
+        ("v2rayN", "v2rayN/6.45"),
+    ]
+    best_label = ""; best_fmt = "error"; best_count = 0; best_text = ""
+
+    for label, ua in ua_configs:
         headers = {"User-Agent": ua} if ua else {}
         try:
             resp = requests.get(url, headers=headers, timeout=30)
             resp.raise_for_status()
             fmt = detect_format(resp.text)
-            if fmt != "error":
-                return fmt, resp.text
+            if fmt == "error":
+                continue
+            count = _count_nodes(resp.text, fmt)
+            if count > best_count:
+                best_label = label; best_fmt = fmt; best_count = count; best_text = resp.text
+            elif count == best_count and count > 0:
+                if label == "default" and best_label != "default":
+                    best_label = label; best_fmt = fmt; best_count = count; best_text = resp.text
         except Exception:
             continue
+
+    if best_fmt != "error":
+        return best_fmt, best_text
     raise ValueError("Failed to fetch subscription with all fallback UAs")
+
 
 
 # ---------------------------------------------------------------------------

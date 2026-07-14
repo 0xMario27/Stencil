@@ -325,20 +325,82 @@ _surge2clash() {
 }
 
 # ---- Smart fetcher with UA fallback ----
-# Returns format string (surge/clash/base64/error), writes to output file
+# Tries ALL UAs, counts nodes per response, picks the one with most nodes.
+# Default UA gets priority in ties. Returns format string, writes best to output file.
+
+# Helper: count nodes in a file for a given format
+_count_nodes() {
+  local f="$1" fmt="$2" c=0 decoded
+  case "$fmt" in
+    surge)
+      c="$(awk '/^\[Proxy\]/{f=1;next} /^\[/{f=0} f' "$f" \
+        | grep -acE '^[^#[:space:]].*=[[:space:]]*(anytls|ss|ssr|trojan|vmess|vless|hysteria2?|tuic|http|https|socks5(-tls)?|snell|wireguard|direct)([[:space:]]*,|[[:space:]]*$)' 2>/dev/null || echo 0)"
+      ;;
+    clash)
+      c="$(awk '/^proxies:/{f=1;next} /^[a-zA-Z]/{f=0} f' "$f" \
+        | grep -cE '^[[:space:]]*-[[:space:]]*\{' 2>/dev/null || echo 0)"
+      ;;
+    base64)
+      decoded="$(openssl base64 -d -A -in "$f" 2>/dev/null || true)"
+      c="$(printf '%s\n' "$decoded" | grep -c '://' 2>/dev/null || echo 0)"
+      ;;
+  esac
+  printf '%d' "$c"
+}
+
 _fetch_sub() {
-  local url="$1" out="$2" ua fmt
-  # Try 1: Surge UA
-  ua="Surge iOS/3000 CFNetwork Darwin"
-  curl -fsSL -A "$ua" --max-time 30 "$url" -o "$out" 2>/dev/null && fmt="$(_detect_format "$out")" && { [ "$fmt" != "error" ] && echo "$fmt" && return 0; }
-  # Try 2: Clash UA
-  ua="ClashforWindows/0.20.39"
-  curl -fsSL -A "$ua" --max-time 30 "$url" -o "$out" 2>/dev/null && fmt="$(_detect_format "$out")" && { [ "$fmt" != "error" ] && echo "$fmt" && return 0; }
-  # Try 3: Default UA (gets base64)
-  curl -fsSL --max-time 30 "$url" -o "$out" 2>/dev/null && fmt="$(_detect_format "$out")" && { echo "$fmt" && return 0; }
-  # Try 4: v2rayN UA
-  ua="v2rayN/6.45"
-  curl -fsSL -A "$ua" --max-time 30 "$url" -o "$out" 2>/dev/null && fmt="$(_detect_format "$out")" && { echo "$fmt" && return 0; }
+  local url="$1" out="$2" best_label="" best_fmt="error" best_count=0 best_file="" label fmt count tmpfile
+
+  # Try all UAs in priority order: default first, then Surge, Clash, v2rayN
+  local ua_list=(
+    "default||"                     # default UA
+    "Surge|Surge iOS/3000 CFNetwork Darwin"
+    "Clash|ClashforWindows/0.20.39"
+    "v2rayN|v2rayN/6.45"
+  )
+  local entry_l ua_spec label_l ua_l
+
+  for entry_l in "${ua_list[@]}"; do
+    ua_spec="${entry_l#*|}"; label_l="${entry_l%%|*}"; ua_l="${ua_spec#*|}"
+    tmpfile="$(mktemp)"
+
+    if [ "$label_l" = "default" ]; then
+      curl -fsSL --max-time 30 "$url" -o "$tmpfile" 2>/dev/null || { rm -f "$tmpfile"; continue; }
+    else
+      curl -fsSL -A "$ua_l" --max-time 30 "$url" -o "$tmpfile" 2>/dev/null || { rm -f "$tmpfile"; continue; }
+    fi
+
+    fmt="$(_detect_format "$tmpfile")"
+    if [ "$fmt" = "error" ]; then
+      rm -f "$tmpfile"; continue
+    fi
+
+    count="$(_count_nodes "$tmpfile" "$fmt")"
+    count="${count:-0}"
+
+    # Pick best: more nodes wins; default UA breaks ties
+    if [ "$count" -gt "$best_count" ]; then
+      [ -n "$best_file" ] && rm -f "$best_file"
+      best_label="$label_l"; best_fmt="$fmt"; best_count="$count"; best_file="$tmpfile"
+    elif [ "$count" -eq "$best_count" ] && [ "$count" -gt 0 ]; then
+      # Tie: prefer default UA
+      if [ "$label_l" = "default" ] && [ "$best_label" != "default" ]; then
+        rm -f "$best_file"
+        best_label="$label_l"; best_fmt="$fmt"; best_count="$count"; best_file="$tmpfile"
+      else
+        rm -f "$tmpfile"
+      fi
+    else
+      rm -f "$tmpfile"
+    fi
+  done
+
+  if [ -n "$best_file" ] && [ "$best_fmt" != "error" ]; then
+    cp "$best_file" "$out"
+    rm -f "$best_file"
+    echo "$best_fmt"
+    return 0
+  fi
   echo "error"
   return 1
 }
