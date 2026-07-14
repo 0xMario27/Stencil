@@ -481,9 +481,9 @@ def extract_stash_clash(raw_text: str) -> str:
     return "\n".join(clash_lines)
 
 
-def gen_stash(template_name: str, sub_url: str) -> tuple[bytes, str]:
+def gen_stash(client_dir: str, template_name: str, sub_url: str) -> tuple[bytes, str]:
     """Fetch subscription via smart fetcher, convert to Clash YAML, inline nodes."""
-    tpl_path = ROOT / "Stash" / template_name
+    tpl_path = ROOT / client_dir / template_name
     tpl_text = tpl_path.read_text(encoding="utf-8")
 
     fmt, raw_text = fetch_sub(sub_url)
@@ -610,7 +610,7 @@ def api_generate():
         if client == "Surge":
             content, default_name = gen_surge(template, sub_url)
         elif client in ("Stash", "ClashMac"):
-            content, default_name = gen_stash(template, sub_url)
+            content, default_name = gen_stash(client, template, sub_url)
         else:
             return jsonify({"error": f"Unknown client: {client}"}), 400
 

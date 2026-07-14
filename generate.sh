@@ -428,7 +428,7 @@ _detect_format() {
 
 # ---------- Stash generator (inline nodes, no proxy-providers) ----------
 gen_stash() {
-  local sub="$1" tpl="Stash/$2" out="result/$3"
+  local sub="$1" dir="$2" tpl="$dir/$3" out="result/$4"
   local raw fmt clash; raw="$(mktemp)"; trap 'rm -f "$raw"' RETURN
   echo "  ⏬ Fetching subscription..."
   fmt="$(_fetch_sub "$sub" "$raw")"
@@ -538,8 +538,8 @@ echo -e "${c_t}  Generating...${c_o}"
 echo -e "  Client: ${c_d}${CLIENT}${c_o}  Template: ${c_d}${TPL}${c_o}  Output: ${c_d}${OUTDIR}/${OUT}${c_o}\n"
 case "$CLIENT" in
   Surge) gen_surge "$SUB" "$TPL" "$OUT";;
-  Stash) gen_stash "$SUB" "$TPL" "$OUT";;
-  ClashMac) gen_stash "$SUB" "$TPL" "$OUT";;
+  Stash) gen_stash "$SUB" "Stash" "$TPL" "$OUT";;
+  ClashMac) gen_stash "$SUB" "ClashMac" "$TPL" "$OUT";;
 esac
 echo -e "  📄 ${c_ok}$(pwd)/${OUTDIR}/${OUT}${c_o}"
 echo -e "  ${c_d}Import into the corresponding client (contains real credentials; do not commit to git)${c_o}"
