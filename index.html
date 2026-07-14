@@ -191,6 +191,7 @@ function irToClash(nodes) {
     if (n.skip_cert_verify) entry += ', skip-cert-verify: true';
     if (n.client_fingerprint) entry += `, client-fingerprint: ${n.client_fingerprint}`;
     if (n.peer) entry += `, peer: ${n.peer}`;
+    if (n.network) entry += `, network: ${n.network}`;
     return entry + '}';
   }).join('\n');
 }
