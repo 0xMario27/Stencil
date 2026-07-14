@@ -5,6 +5,8 @@ import os
 import re
 import tempfile
 from pathlib import Path
+import base64
+from urllib.parse import unquote, parse_qs
 
 import requests
 from flask import Flask, jsonify, render_template, request, send_file
@@ -15,6 +17,219 @@ _HERE = Path(__file__).resolve().parent
 ROOT = _HERE.parent if (_HERE.parent / "Surge").is_dir() else _HERE
 UA_SURGE = "Surge iOS/3000 CFNetwork Darwin"
 UA_STASH = "ClashforWindows/0.20.39"
+
+
+# ---------------------------------------------------------------------------
+# Node IR & Converters (universal pipeline)
+# ---------------------------------------------------------------------------
+RE_URI_NODE = re.compile(
+    r'^(?P<scheme>anytls|trojan|hysteria2?|ss|vmess|vless|tuic)://'
+    r'(?P<auth>[^@]+)@'
+    r'(?P<host>[^:/?#]+)'
+    r'(?::(?P<port>\d+))?'
+    r'(?P<path>/[^?#]*)?'
+    r'(?:\?(?P<query>[^#]*))?'
+    r'(?:#(?P<name>.*))?$'
+)
+
+SUPPORTED_SCHEMES = {"anytls", "trojan", "hysteria", "hysteria2"}
+
+
+def parse_uri_node(line: str):
+    """Parse a single proxy URI line into an IR dict."""
+    line = line.strip()
+    m = RE_URI_NODE.match(line)
+    if not m:
+        return None
+    scheme = m.group("scheme")
+    if scheme not in SUPPORTED_SCHEMES and scheme != "ss":
+        return None
+
+    auth = m.group("auth")
+    host = m.group("host")
+    port = int(m.group("port") or 443)
+    name = unquote(m.group("name") or host)
+    query = parse_qs(m.group("query") or "")
+
+    node = {
+        "type": scheme,
+        "name": name,
+        "server": host,
+        "port": port,
+        "password": auth,
+        "udp": True,
+    }
+    if query.get("sni"):
+        node["sni"] = query["sni"][0]
+    if query.get("insecure", ["0"])[0] == "1" or query.get("allowInsecure", ["0"])[0] == "1":
+        node["skip_cert_verify"] = True
+    if query.get("fp"):
+        node["client_fingerprint"] = query["fp"][0]
+    if query.get("peer"):
+        node["peer"] = query["peer"][0]
+    if query.get("type"):
+        node["network"] = query["type"][0]
+    return node
+
+
+def parse_uri_list(text: str):
+    """Parse base64-decoded URI list into IR dicts."""
+    nodes = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        node = parse_uri_node(line)
+        if node:
+            nodes.append(node)
+    return nodes
+
+
+def parse_clash_proxies(text: str):
+    """Extract Clash YAML proxies section and parse each entry into IR dicts."""
+    nodes = []
+    in_proxies = False
+    for line in text.splitlines():
+        if line.strip() == "proxies:":
+            in_proxies = True
+            continue
+        if in_proxies:
+            if re.match(r"^[a-zA-Z]", line):
+                break
+            if re.match(r"^\s*-\s*\{", line):
+                node = _parse_clash_line(line)
+                if node:
+                    nodes.append(node)
+    return nodes
+
+
+def _parse_clash_line(line: str):
+    """Parse a single Clash YAML flow-mapping proxy line into an IR dict."""
+    def extract(key):
+        m = re.search(rf'["\']?{key}["\']?\s*:\s*["\']?([^"\'}},\s]+)["\']?', line)
+        return m.group(1) if m else ""
+
+    def extract_bool(key):
+        m = re.search(rf'{key}\s*:\s*true', line)
+        return m is not None
+
+    name = (re.search(r'"name"\s*:\s*"([^"]*)"', line) or
+            re.search(r"'name'\s*:\s*'([^']*)'", line) or
+            re.search(r'[{,]\s*name\s*:\s*"?([^",}]+)"?', line))
+    if not name:
+        return None
+    name = name.group(1)
+
+    typ = (re.search(r'"type"\s*:\s*"([^"]*)"', line) or
+           re.search(r"'type'\s*:\s*'([^']*)'", line) or
+           re.search(r'[{,]\s*type\s*:\s*"?([^",}]+)"?', line))
+    if not typ:
+        return None
+    typ = typ.group(1)
+
+    server = extract("server")
+    port = extract("port")
+    password = extract("password")
+    sni = extract("sni")
+    fp = extract("client-fingerprint")
+
+    node = {
+        "type": typ,
+        "name": name,
+        "server": server,
+        "port": int(port) if port else 443,
+        "password": password,
+        "udp": True,
+    }
+    if sni:
+        node["sni"] = sni
+    if extract_bool("skip-cert-verify"):
+        node["skip_cert_verify"] = True
+    if fp:
+        node["client_fingerprint"] = fp
+    peer = extract("peer")
+    if peer:
+        node["peer"] = peer
+    return node
+
+
+def ir_to_surge(nodes):
+    """Convert IR node dicts to Surge conf [Proxy] lines."""
+    lines = []
+    for n in nodes:
+        parts = [f'{n["name"]} = {n["type"]}, {n["server"]}, {n["port"]}']
+        if n.get("password"):
+            parts.append(f'password={n["password"]}')
+        if n.get("udp"):
+            parts.append("udp-relay=true")
+        if n.get("sni"):
+            parts.append(f'sni={n["sni"]}')
+        if n.get("skip_cert_verify"):
+            parts.append("skip-cert-verify=true")
+        if n.get("client_fingerprint"):
+            parts.append("tfo=true")
+        if n.get("peer"):
+            parts.append(f'tls-hostname={n["peer"]}')
+        lines.append(", ".join(parts))
+    return lines
+
+
+def ir_to_clash(nodes):
+    """Convert IR node dicts to Clash YAML proxy lines."""
+    entries = []
+    for n in nodes:
+        entry = (
+            f'  - {{name: "{n["name"]}", type: {n["type"]}, '
+            f'server: {n["server"]}, port: {n["port"]}, '
+            f'password: "{n["password"]}", udp: true'
+        )
+        if n.get("sni"):
+            entry += f', sni: {n["sni"]}'
+        if n.get("skip_cert_verify"):
+            entry += f', skip-cert-verify: true'
+        if n.get("client_fingerprint"):
+            entry += f', client-fingerprint: {n["client_fingerprint"]}'
+        if n.get("peer"):
+            entry += f', peer: {n["peer"]}'
+        entries.append(entry + "}")
+    return "\n".join(entries)
+
+
+def detect_format(text: str) -> str:
+    """Auto-detect subscription response format: surge, clash, base64, or error."""
+    if not text or not text.strip():
+        return "error"
+    if "[Proxy]" in text or "[General]" in text:
+        return "surge"
+    if re.search(r'^\s*proxies:', text, re.MULTILINE):
+        return "clash"
+    try:
+        decoded = base64.b64decode(text.strip()).decode("utf-8")
+        if "://" in decoded:
+            return "base64"
+    except Exception:
+        pass
+    return "error"
+
+
+def fetch_sub(url: str):
+    """Fetch subscription with UA fallback. Returns (format, raw_text)."""
+    for ua in [
+        "Surge iOS/3000 CFNetwork Darwin",
+        "ClashforWindows/0.20.39",
+        "",
+        "v2rayN/6.45",
+    ]:
+        headers = {"User-Agent": ua} if ua else {}
+        try:
+            resp = requests.get(url, headers=headers, timeout=30)
+            resp.raise_for_status()
+            fmt = detect_format(resp.text)
+            if fmt != "error":
+                return fmt, resp.text
+        except Exception:
+            continue
+    raise ValueError("Failed to fetch subscription with all fallback UAs")
 
 
 # ---------------------------------------------------------------------------
@@ -63,16 +278,27 @@ def extract_surge_nodes(raw_text: str) -> list[str]:
 
 
 def gen_surge(template_name: str, sub_url: str) -> tuple[bytes, str]:
-    """Download subscription, inline nodes, return (content, filename)."""
+    """Fetch subscription via smart fetcher, convert to Surge, inline nodes."""
     tpl_path = ROOT / "Surge" / template_name
     tpl_text = tpl_path.read_text(encoding="utf-8")
 
-    # Fetch subscription
-    resp = requests.get(sub_url, headers={"User-Agent": UA_SURGE}, timeout=40)
-    resp.raise_for_status()
-    nodes = extract_surge_nodes(resp.text)
+    fmt, raw_text = fetch_sub(sub_url)
+
+    # Convert detected format -> Surge lines
+    if fmt == "surge":
+        nodes = extract_surge_nodes(raw_text)
+    elif fmt == "clash":
+        ir_nodes = parse_clash_proxies(raw_text)
+        nodes = ir_to_surge(ir_nodes)
+    elif fmt == "base64":
+        decoded = base64.b64decode(raw_text.strip()).decode("utf-8")
+        ir_nodes = parse_uri_list(decoded)
+        nodes = ir_to_surge(ir_nodes)
+    else:
+        raise ValueError("No usable proxy nodes found in subscription")
+
     if not nodes:
-        raise ValueError("No Surge proxy nodes found in subscription")
+        raise ValueError("No usable proxy nodes found in subscription")
 
     # Build output: insert nodes after [Proxy] header, skip old lines
     out_lines = []
@@ -90,7 +316,6 @@ def gen_surge(template_name: str, sub_url: str) -> tuple[bytes, str]:
             if line.startswith("["):
                 in_proxy = False
                 out_lines.append(line)
-            # else skip old proxy lines
             continue
         out_lines.append(line)
 
@@ -120,26 +345,29 @@ def extract_stash_clash(raw_text: str) -> str:
 
 
 def gen_stash(template_name: str, sub_url: str) -> tuple[bytes, str]:
-    """Download subscription, inline nodes, return (content, filename)."""
+    """Fetch subscription via smart fetcher, convert to Clash YAML, inline nodes."""
     tpl_path = ROOT / "Stash" / template_name
     tpl_text = tpl_path.read_text(encoding="utf-8")
 
-    # 1st attempt: fetch with Clash UA, look for YAML proxies section
-    resp = requests.get(sub_url, headers={"User-Agent": UA_STASH}, timeout=40)
-    resp.raise_for_status()
-    clash = extract_stash_clash(resp.text)
+    fmt, raw_text = fetch_sub(sub_url)
 
-    # 2nd attempt (fallback): fetch with v2rayN UA, base64 decode URI list
-    if not clash.strip():
-        import base64
-        try:
-            resp2 = requests.get(sub_url, headers={"User-Agent": "v2rayN/6.45"}, timeout=40)
-            resp2.raise_for_status()
-            decoded = base64.b64decode(resp2.text).decode("utf-8")
-            if "://" in decoded:
-                clash = _uri2clash(decoded)
-        except Exception:
-            pass
+    # Convert detected format -> Clash YAML lines
+    if fmt == "clash":
+        clash = extract_stash_clash(raw_text)
+    elif fmt == "base64":
+        decoded = base64.b64decode(raw_text.strip()).decode("utf-8")
+        ir_nodes = parse_uri_list(decoded)
+        clash = ir_to_clash(ir_nodes)
+    elif fmt == "surge":
+        # Re-fetch with base64 fallback since Surge->IR parsing isn't implemented yet
+        decoded = base64.b64decode(raw_text.strip()).decode("utf-8", errors="ignore")
+        ir_nodes = parse_uri_list(decoded)
+        if ir_nodes:
+            clash = ir_to_clash(ir_nodes)
+        else:
+            clash = ""
+    else:
+        raise ValueError("No usable proxy nodes found for Stash")
 
     if not clash.strip():
         raise ValueError("No usable proxy nodes found for Stash")
@@ -185,7 +413,6 @@ def gen_stash(template_name: str, sub_url: str) -> tuple[bytes, str]:
 def _uri2clash(text: str) -> str:
     """Convert base64-decoded URI subscription entries to Clash flow format.
     Handles: anytls://password@host:port/?params#name"""
-    from urllib.parse import unquote
     result = []
     for line in text.splitlines():
         line = line.strip()
