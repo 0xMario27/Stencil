@@ -268,6 +268,62 @@ _clash2clash() {
     | sed -E 's/^[[:space:]]*-[[:space:]]*/  - /' || true
 }
 
+# ---- Surge conf [Proxy] lines -> Clash YAML ----
+_surge2clash() {
+  awk '
+  BEGIN { in_proxy = 0 }
+  /^\[Proxy\]/ { in_proxy = 1; next }
+  /^\[/ { in_proxy = 0; next }
+  !in_proxy { next }
+  /^[[:space:]]*#/ || /^[[:space:]]*$/ { next }
+  {
+    # Split: Name = rest
+    eq = index($0, "=")
+    if (eq == 0) next
+    name = substr($0, 1, eq - 1); gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
+    rest = substr($0, eq + 1); gsub(/^[[:space:]]+|[[:space:]]+$/, "", rest)
+
+    if (rest == "direct") {
+      printf "  - {name: \"%s\", type: direct, server: localhost, port: 0, password: \"\", udp: false}\n", name
+      next
+    }
+
+    # Split rest by ", " into parts
+    n = split(rest, parts, /,[[:space:]]*/)
+    if (n < 3) next
+    typ = parts[1]; server = parts[2]; port = parts[3]
+
+    pw = ""; sni = ""; skv = ""; net = ""; udp = "true"
+    for (i = 4; i <= n; i++) {
+      p = parts[i]
+      if (p == "udp-relay=true") udp = "true"
+      else if (p == "skip-cert-verify=true") skv = "true"
+      else if (p == "tfo=true") { }  # skip, TCP Fast Open
+      else {
+        eq2 = index(p, "=")
+        if (eq2 > 0) {
+          k = substr(p, 1, eq2 - 1); v = substr(p, eq2 + 1)
+          if (k == "password") pw = v
+          else if (k == "sni") sni = v
+          else if (k == "tls-hostname") sni = v
+          else if (k == "ws" && v == "true") net = "ws"
+          else if (k == "h2" && v == "true") net = "h2"
+        }
+      }
+    }
+
+    entry = sprintf("  - {name: \"%s\", type: %s, server: %s, port: %s", name, typ, server, port)
+    if (pw != "") entry = entry sprintf(", password: \"%s\"", pw)
+    else entry = entry ", password: \"\""
+    entry = entry ", udp: " udp
+    if (sni != "") entry = entry ", sni: " sni
+    if (skv == "true") entry = entry ", skip-cert-verify: true"
+    if (net != "") entry = entry ", network: " net
+    entry = entry "}"
+    print entry
+  }'
+}
+
 # ---- Smart fetcher with UA fallback ----
 # Returns format string (surge/clash/base64/error), writes to output file
 _fetch_sub() {
@@ -328,11 +384,7 @@ gen_stash() {
       fi
       ;;
     surge)
-      curl -fsSL --max-time 30 "$sub" -o "$raw" 2>/dev/null || true
-      local decoded; decoded="$(openssl base64 -d -A -in "$raw" 2>/dev/null || true)"
-      if printf '%s' "$decoded" | grep -q '://'; then
-        clash="$(printf '%s\n' "$decoded" | _uri2clash || true)"
-      fi
+      clash="$(_surge2clash < "$raw" || true)"
       ;;
   esac
 
