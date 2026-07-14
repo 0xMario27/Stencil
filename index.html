@@ -79,17 +79,154 @@ function extractSurgeNodes(text) {
   return nodes;
 }
 
-function genSurge(templateText, subText) {
-  const nodes = extractSurgeNodes(subText);
-  if (!nodes.length) throw new Error('No Surge proxy nodes found in subscription');
-  const out = []; let inProxy = false, done = false;
-  for (const line of templateText.split('\n')) {
-    if (line.startsWith('[Proxy]') && !done) { out.push(line); out.push(...nodes); out.push(''); done = true; inProxy = true; continue; }
-    if (inProxy) { if (line.startsWith('[')) { inProxy = false; out.push(line); } continue; }
-    out.push(line);
-  }
-  return out.join('\n');
+// ──────────────────────────────────────────────
+// UNIVERSAL NODE CONVERTER (IR Pipeline)
+// ──────────────────────────────────────────────
+
+function urlDecode(str) {
+  try { return decodeURIComponent(str); } catch(e) { return str; }
 }
+
+function parseUriNode(line) {
+  const m = line.trim().match(/^(anytls|trojan|hysteria2?|ss|vmess|vless|tuic):\/\/([^@]+)@([^:/?#]+)(?::(\d+))?(\/[^?#]*)?(?:\?([^#]*))?(?:#(.*))?$/);
+  if (!m) return null;
+
+  const [, scheme, auth, host, port, , queryStr, name] = m;
+  if (!['anytls','trojan','hysteria','hysteria2'].includes(scheme)) return null;
+
+  const params = new URLSearchParams(queryStr || '');
+  const node = {
+    type: scheme,
+    name: urlDecode(name || host),
+    server: host,
+    port: parseInt(port || '443'),
+    password: auth,
+    udp: true
+  };
+  const sni = params.get('sni'); if (sni) node.sni = sni;
+  const fp = params.get('fp'); if (fp) node.client_fingerprint = fp;
+  const insec = params.get('insecure') || params.get('allowInsecure');
+  if (insec === '1') node.skip_cert_verify = true;
+  const peer = params.get('peer'); if (peer) node.peer = peer;
+  const ptyp = params.get('type'); if (ptyp) node.network = ptyp;
+  return node;
+}
+
+function parseUriList(text) {
+  const nodes = [];
+  for (let line of text.split('\n')) {
+    line = line.trim();
+    if (!line || line.startsWith('#')) continue;
+    const node = parseUriNode(line);
+    if (node) nodes.push(node);
+  }
+  return nodes;
+}
+
+function parseClashProxies(text) {
+  const nodes = [];
+  let inP = false;
+  for (let line of text.split('\n')) {
+    if (line.trim() === 'proxies:') { inP = true; continue; }
+    if (inP) {
+      if (/^[a-zA-Z]/.test(line)) break;
+      if (/^\s*-\s*\{/.test(line)) {
+        const node = parseClashLine(line);
+        if (node) nodes.push(node);
+      }
+    }
+  }
+  return nodes;
+}
+
+function parseClashLine(line) {
+  function extract(key) {
+    const m = line.match(new RegExp(`["']?${key}["']?\\s*:\\s*["']?([^"'}},\\s]+)["']?`));
+    return m ? m[1] : '';
+  }
+  function extractBool(key) { return new RegExp(`${key}\\s*:\\s*true`).test(line); }
+
+  const name = (line.match(/"name"\s*:\s*"([^"]*)"/) ||
+                line.match(/'name'\s*:\s*'([^']*)'/) ||
+                line.match(/[{,]\s*name\s*:\s*"?([^",}]+)"?/));
+  if (!name) return null;
+
+  const typ = (line.match(/"type"\s*:\s*"([^"]*)"/) ||
+               line.match(/'type'\s*:\s*'([^']*)'/) ||
+               line.match(/[{,]\s*type\s*:\s*"?([^",}]+)"?/));
+  if (!typ) return null;
+
+  const node = {
+    type: typ[1],
+    name: name[1],
+    server: extract('server'),
+    port: parseInt(extract('port')) || 443,
+    password: extract('password'),
+    udp: true
+  };
+  const sni = extract('sni'); if (sni) node.sni = sni;
+  if (extractBool('skip-cert-verify')) node.skip_cert_verify = true;
+  const fp = extract('client-fingerprint'); if (fp) node.client_fingerprint = fp;
+  const peer = extract('peer'); if (peer) node.peer = peer;
+  return node;
+}
+
+function irToSurge(nodes) {
+  return nodes.map(n => {
+    const parts = [`${n.name} = ${n.type}, ${n.server}, ${n.port}`];
+    if (n.password) parts.push(`password=${n.password}`);
+    if (n.udp) parts.push('udp-relay=true');
+    if (n.sni) parts.push(`sni=${n.sni}`);
+    if (n.skip_cert_verify) parts.push('skip-cert-verify=true');
+    if (n.client_fingerprint) parts.push(`client-fingerprint=${n.client_fingerprint}`);
+    if (n.peer) parts.push(`tls-hostname=${n.peer}`);
+    return parts.join(', ');
+  });
+}
+
+function irToClash(nodes) {
+  return nodes.map(n => {
+    let entry = `  - {name: "${n.name}", type: ${n.type}, server: ${n.server}, port: ${n.port}, password: "${n.password}", udp: true`;
+    if (n.sni) entry += `, sni: ${n.sni}`;
+    if (n.skip_cert_verify) entry += ', skip-cert-verify: true';
+    if (n.client_fingerprint) entry += `, client-fingerprint: ${n.client_fingerprint}`;
+    if (n.peer) entry += `, peer: ${n.peer}`;
+    return entry + '}';
+  }).join('\n');
+}
+
+function detectFormat(text) {
+  if (!text || !text.trim()) return 'error';
+  if (/\[Proxy\]|\[General\]/.test(text)) return 'surge';
+  if (/^\s*proxies:/.test(text)) return 'clash';
+  try {
+    const clean = text.replace(/\s/g, '');
+    const decoded = atob(clean);
+    if (decoded.includes('://')) return 'base64';
+  } catch(e) {}
+  return 'error';
+}
+
+async function fetchSub(url) {
+  const uas = [
+    'Surge iOS/3000 CFNetwork Darwin',
+    'ClashforWindows/0.20.39',
+    '',
+    'v2rayN/6.45'
+  ];
+  for (const ua of uas) {
+    try {
+      const text = await proxyFetch(url, ua);
+      const fmt = detectFormat(text);
+      if (fmt !== 'error') return { format: fmt, text };
+    } catch(e) {}
+  }
+  throw new Error('Failed to fetch subscription with all fallback UAs');
+}
+
+// ──────────────────────────────────────────────
+// GEN FUNCTIONS (using universal pipeline)
+// ──────────────────────────────────────────────
 
 function extractStashClash(text) {
   const lines = text.split('\n'); let inP = false; const out = [];
@@ -100,50 +237,41 @@ function extractStashClash(text) {
   return out.join('\n');
 }
 
-function uri2clash(text) {
-  const result = [];
-  for (let line of text.split('\n')) {
-    line = line.trim();
-    if (!line.startsWith('anytls://')) continue;
-    let rest = line.slice('anytls://'.length);
-    const atIdx = rest.indexOf('@');
-    if (atIdx === -1) continue;
-    const password = rest.slice(0, atIdx);
-    rest = rest.slice(atIdx + 1);
-    let name = '', query = '';
-    const hashIdx = rest.indexOf('#');
-    if (hashIdx !== -1) { name = decodeURIComponent(rest.slice(hashIdx + 1)); rest = rest.slice(0, hashIdx); }
-    const qIdx = rest.indexOf('?');
-    if (qIdx !== -1) { query = rest.slice(qIdx + 1); rest = rest.slice(0, qIdx); }
-    const hostPort = rest.split('/')[0];
-    const [host, port = '443'] = hostPort.includes(':') ? hostPort.split(':') : [hostPort, '443'];
-    let sni = '', fp = '';
-    for (const p of query.split('&')) {
-      if (p.startsWith('sni=')) sni = p.slice(4);
-      else if (p.startsWith('fp=')) fp = p.slice(3);
-    }
-    if (!name) name = host;
-    let entry = `  - {name: "${name}", type: anytls, server: ${host}, port: ${port}, password: "${password}", udp: true`;
-    if (sni) entry += `, sni: ${sni}`;
-    if (fp) entry += `, client-fingerprint: ${fp}`;
-    entry += '}';
-    result.push(entry);
+function genSurge(templateText, subTextOrNodes) {
+  let nodes;
+  if (Array.isArray(subTextOrNodes)) {
+    nodes = irToSurge(subTextOrNodes);
+  } else {
+    nodes = extractSurgeNodes(subTextOrNodes);
+    if (!nodes.length) throw new Error('No Surge proxy nodes found in subscription');
   }
-  return result.join('\n');
+  const out = []; let inProxy = false, done = false;
+  for (const line of templateText.split('\n')) {
+    if (line.startsWith('[Proxy]') && !done) {
+      out.push(line); out.push(...nodes); out.push('');
+      done = true; inProxy = true; continue;
+    }
+    if (inProxy) { if (line.startsWith('[')) { inProxy = false; out.push(line); } continue; }
+    out.push(line);
+  }
+  return out.join('\n');
 }
 
-function genStash(templateText, subText) {
-  let clash = extractStashClash(subText);
-  if (!clash.trim()) {
-    // Try base64 decode
-    try {
-      const decoded = atob(subText.replace(/\s/g, ''));
-      if (decoded.includes('://')) clash = uri2clash(decoded);
-    } catch(e) {}
+function genStash(templateText, subTextOrClash) {
+  let clash;
+  if (typeof subTextOrClash === 'string') {
+    clash = extractStashClash(subTextOrClash);
+    if (!clash.trim()) {
+      try {
+        const decoded = atob(subTextOrClash.replace(/\s/g, ''));
+        if (decoded.includes('://')) clash = irToClash(parseUriList(decoded));
+      } catch(e) {}
+    }
+  } else {
+    clash = subTextOrClash;
   }
   if (!clash.trim()) throw new Error('No usable proxy nodes found for Stash');
 
-  // Build names array
   const names = [];
   for (const line of clash.split('\n')) {
     let m = line.match(/"name"\s*:\s*"([^"]*)"/);
@@ -323,15 +451,33 @@ async function doGenerate() {
     }
     const tplText = tplCache[tplKey];
 
-    // Fetch subscription via proxy
-    const ua = state.client === 'Surge' ? 'Surge iOS/3000 CFNetwork Darwin' : 'ClashforWindows/0.20.39';
-    let subText = await proxyFetch(state.subUrl, ua);
-
-    // Stash fallback: retry with v2rayN UA
-    if (state.client !== 'Surge') {
-      let clash = extractStashClash(subText);
-      if (!clash.trim()) {
-        try { subText = await proxyFetch(state.subUrl, 'v2rayN/6.45'); } catch(e) {}
+    // Fetch subscription via universal smart fetcher
+    let subText;
+    if (state.client === 'Surge') {
+      const sub = await fetchSub(state.subUrl);
+      let nodes;
+      if (sub.format === 'surge') {
+        subText = sub.text;
+      } else if (sub.format === 'clash') {
+        nodes = parseClashProxies(sub.text);
+        subText = irToSurge(nodes).join('\n');
+      } else if (sub.format === 'base64') {
+        const decoded = atob(sub.text.replace(/\s/g, ''));
+        nodes = parseUriList(decoded);
+        subText = irToSurge(nodes).join('\n');
+      } else {
+        throw new Error('No usable nodes found');
+      }
+    } else {
+      const sub = await fetchSub(state.subUrl);
+      if (sub.format === 'clash') {
+        subText = sub.text;
+      } else if (sub.format === 'base64') {
+        subText = sub.text;
+      } else if (sub.format === 'surge') {
+        throw new Error('Cannot convert Surge config to Stash format directly');
+      } else {
+        throw new Error('No usable nodes found');
       }
     }
 
