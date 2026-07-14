@@ -153,6 +153,98 @@ def _parse_clash_line(line: str):
     return node
 
 
+def parse_surge_to_ir(text: str):
+    """Parse Surge conf [Proxy] lines into IR dicts."""
+    nodes = []
+    in_proxy = False
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("[Proxy]"):
+            in_proxy = True
+            continue
+        if in_proxy and line.startswith("["):
+            in_proxy = False
+            continue
+        if not in_proxy:
+            continue
+        if "=" not in line:
+            continue
+        name, rest = line.split("=", 1)
+        name = name.strip()
+        rest = rest.strip()
+
+        # Handle "direct" (no params)
+        if rest == "direct":
+            nodes.append({
+                "type": "direct",
+                "name": name,
+                "server": "localhost",
+                "port": 0,
+                "password": "",
+                "udp": False,
+            })
+            continue
+
+        # Split: protocol, server, port[, key=val, ...]
+        parts = [p.strip() for p in rest.split(",")]
+        if len(parts) < 2:
+            continue
+        protocol = parts[0]
+
+        # Skip non-proxy protocol names (Surge General section lines sneak through)
+        if protocol in ("system", "server", "1.1.1.1", "8.8.8.8"):
+            continue
+        if re.match(r"^\d+\.\d+\.\d+\.\d+", protocol):
+            continue
+
+        if len(parts) < 3:
+            continue
+        server = parts[1]
+        port = parts[2]
+
+        node = {
+            "type": protocol,
+            "name": name,
+            "server": server,
+            "port": int(port) if port.isdigit() else 0,
+            "password": "",
+            "udp": True,
+        }
+
+        for p in parts[3:]:
+            if "=" in p:
+                k, v = p.split("=", 1)
+                k = k.strip()
+                v = v.strip()
+                if k == "password":
+                    node["password"] = v
+                elif k == "sni":
+                    node["sni"] = v
+                elif k in ("encrypt-method", "method"):
+                    node["encrypt_method"] = v
+                elif k in ("obfs", "obfs-host", "obfs-uri", "ws-path", "grpc-service-name"):
+                    node[k.replace("-", "_")] = v
+                elif k == "ws" and v == "true":
+                    node["network"] = "ws"
+                elif k == "h2" and v == "true":
+                    node["network"] = "h2"
+                elif k == "tls-hostname":
+                    node["sni"] = v
+            else:
+                k = p.strip()
+                if k == "udp-relay=true":
+                    node["udp"] = True
+                elif k == "skip-cert-verify=true":
+                    node["skip_cert_verify"] = True
+                elif k == "tfo=true":
+                    pass  # TCP Fast Open, not IR-relevant
+
+        nodes.append(node)
+    return nodes
+
+
 def ir_to_surge(nodes):
     """Convert IR node dicts to Surge conf [Proxy] lines."""
     lines = []
@@ -361,7 +453,8 @@ def gen_stash(template_name: str, sub_url: str) -> tuple[bytes, str]:
         ir_nodes = parse_uri_list(decoded)
         clash = ir_to_clash(ir_nodes)
     elif fmt == "surge":
-        raise ValueError("Surge-format subscription cannot be converted to Stash format directly. Please use a subscription that returns Clash YAML or base64 (v2ray) format.")
+        ir_nodes = parse_surge_to_ir(raw_text)
+        clash = ir_to_clash(ir_nodes)
     else:
         raise ValueError("No usable proxy nodes found for Stash")
 
