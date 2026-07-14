@@ -49,16 +49,29 @@ choose() {
 # ---------- Surge generator ----------
 gen_surge() {
   local sub="$1" tpl="Surge/$2" out="result/$3"
-  local raw nodes; raw="$(mktemp)"; nodes="$(mktemp)"
+  local raw nodes fmt; raw="$(mktemp)"; nodes="$(mktemp)"
   trap 'rm -f "$raw" "$nodes"' RETURN
   echo "  ⏬ Fetching subscription..."
-  curl -fsSL -A "$UA" --max-time 40 "$sub" -o "$raw" \
-    || { echo -e "  ${c_e}❌ Download failed (check URL / network)${c_o}"; return 1; }
-  awk '/^\[Proxy\]/{f=1;next} /^\[/{f=0} f' "$raw" \
-   | grep -aE '^[^#[:space:]].*=[[:space:]]*(anytls|ss|ssr|trojan|vmess|vless|hysteria2?|tuic|http|https|socks5(-tls)?|snell|wireguard|direct)([[:space:]]*,|[[:space:]]*$)' \
-   > "$nodes" || true
+  fmt="$(_fetch_sub "$sub" "$raw")"
+  [ "$fmt" = "error" ] && { echo -e "  ${c_e}❌ Download failed (check URL / network)${c_o}"; return 1; }
+  echo "  🔍 Detected format: ${c_d}$fmt${c_o}"
+
+  case "$fmt" in
+    surge)
+      awk '/^\[Proxy\]/{f=1;next} /^\[/{f=0} f' "$raw" \
+       | grep -aE '^[^#[:space:]].*=[[:space:]]*(anytls|ss|ssr|trojan|vmess|vless|hysteria2?|tuic|http|https|socks5(-tls)?|snell|wireguard|direct)([[:space:]]*,|[[:space:]]*$)' \
+       > "$nodes" || true
+      ;;
+    clash)
+      _clash2surge < "$raw" > "$nodes" || true
+      ;;
+    base64)
+      openssl base64 -d -A -in "$raw" 2>/dev/null | _uri2surge > "$nodes" || true
+      ;;
+  esac
+
   local count; count="$(wc -l < "$nodes" | tr -d ' ')"
-  [ "$count" -gt 0 ] || { echo -e "  ${c_e}❌ Subscription does not match client Surge (no Surge nodes found)${c_o}"; return 1; }
+  [ "$count" -gt 0 ] || { echo -e "  ${c_e}❌ No usable proxy nodes found${c_o}"; return 1; }
   echo -e "  ${c_ok}✅ Extracted $count nodes${c_o}"
   awk -v nodesfile="$nodes" '
     BEGIN { while ((getline l < nodesfile) > 0) nd[++n]=l }
@@ -299,27 +312,36 @@ _detect_format() {
 # ---------- Stash generator (inline nodes, no proxy-providers) ----------
 gen_stash() {
   local sub="$1" tpl="Stash/$2" out="result/$3"
-  local raw; raw="$(mktemp)"; trap 'rm -f "$raw"' RETURN
+  local raw fmt clash; raw="$(mktemp)"; trap 'rm -f "$raw"' RETURN
   echo "  ⏬ Fetching subscription..."
-  curl -fsSL -A "$UA_STASH" --max-time 40 "$sub" -o "$raw" \
-    || { echo -e "  ${c_e}❌ Download failed (check URL / network)${c_o}"; return 1; }
+  fmt="$(_fetch_sub "$sub" "$raw")"
+  [ "$fmt" = "error" ] && { echo -e "  ${c_e}❌ Download failed (check URL / network)${c_o}"; return 1; }
+  echo "  🔍 Detected format: ${c_d}$fmt${c_o}"
 
-  # 1) Extract nodes: try Clash YAML proxies section first
-  local clash; clash="$(awk '/^proxies:/{f=1;next} /^[a-zA-Z]/{f=0} f' "$raw" \
-    | grep -E '^[[:space:]]*-[[:space:]]*\{' | sed -E 's/^[[:space:]]*-[[:space:]]*/  - /' || true)"
-  # Fallback: retry with v2ray UA to get a base64 URI subscription, decode and convert to Clash
-  if [ -z "$clash" ]; then
-    curl -fsSL -A "v2rayN/6.45" --max-time 40 "$sub" -o "$raw" 2>/dev/null || true
-    local decoded; decoded="$(openssl base64 -d -A -in "$raw" 2>/dev/null || true)"
-    if printf '%s' "$decoded" | grep -q '://'; then
-      clash="$(printf '%s\n' "$decoded" | _uri2clash || true)"
-    fi
-  fi
-  [ -n "$clash" ] || { echo -e "  ${c_e}❌ Subscription does not match client Stash (no usable nodes found)${c_o}"; return 1; }
+  case "$fmt" in
+    clash)
+      clash="$(_clash2clash < "$raw" || true)"
+      ;;
+    base64)
+      local decoded; decoded="$(openssl base64 -d -A -in "$raw" 2>/dev/null || true)"
+      if printf '%s' "$decoded" | grep -q '://'; then
+        clash="$(printf '%s\n' "$decoded" | _uri2clash || true)"
+      fi
+      ;;
+    surge)
+      curl -fsSL --max-time 30 "$sub" -o "$raw" 2>/dev/null || true
+      local decoded; decoded="$(openssl base64 -d -A -in "$raw" 2>/dev/null || true)"
+      if printf '%s' "$decoded" | grep -q '://'; then
+        clash="$(printf '%s\n' "$decoded" | _uri2clash || true)"
+      fi
+      ;;
+  esac
+
+  [ -n "$clash" ] || { echo -e "  ${c_e}❌ No usable proxy nodes found${c_o}"; return 1; }
   local count; count="$(printf '%s\n' "$clash" | grep -c '{' || true)"
   echo -e "  ${c_ok}✅ Extracted $count nodes${c_o}"
 
-  # 2) Build names array from Clash entries (used by _stash_group filter logic)
+  # Build names array from Clash entries (used by _stash_group filter logic)
   local -a names=(); local l n
   while IFS= read -r l; do
     [ -z "$l" ] && continue
@@ -328,7 +350,7 @@ gen_stash() {
     [ -n "$n" ] && names+=("$n")
   done <<< "$clash"
 
-  # 3) Rebuild template line by line: drop proxy-providers, inline proxies, rewrite use:[SF] groups
+  # Rebuild template line by line: drop proxy-providers, inline proxies, rewrite use:[SF] groups
   : > "$out"
   local in_pp=0 line
   while IFS= read -r line || [ -n "$line" ]; do
