@@ -32,43 +32,130 @@ RE_URI_NODE = re.compile(
     r'(?:#(?P<name>.*))?$'
 )
 
-SUPPORTED_SCHEMES = {"anytls", "trojan", "hysteria", "hysteria2"}
+# ── Client-Aware Protocol Matrix ──
+CLIENT_PROTOCOLS = {
+    "Surge": {"anytls", "ss", "trojan", "vmess", "hysteria2", "tuic", "http", "https", "socks5", "socks5-tls", "snell", "wireguard", "ssh", "h2", "direct"},
+    "Stash": {"anytls", "ss", "vmess", "vless", "trojan", "hysteria2", "tuic", "http", "socks5", "snell", "wireguard", "direct"},
+    "ClashMac": {"anytls", "ss", "vmess", "vless", "trojan", "hysteria2", "tuic", "http", "socks5", "snell", "wireguard", "direct"},
+}
+
+def filter_by_client(nodes, client):
+    allowed = CLIENT_PROTOCOLS.get(client)
+    if not allowed:
+        return nodes
+    return [n for n in nodes if n["type"] in allowed]
 
 
 def parse_uri_node(line: str):
     """Parse a single proxy URI line into an IR dict."""
     line = line.strip()
+
+    # vmess:// is base64(JSON)
+    if line.startswith("vmess://"):
+        import json as _json
+        try:
+            b64 = line[len("vmess://"):]
+            padded = b64 + '=' * ((4 - len(b64) % 4) % 4)
+            j = _json.loads(base64.b64decode(padded).decode("utf-8"))
+            node = {
+                "type": "vmess", "name": j.get("ps") or j.get("add", ""),
+                "server": j.get("add", ""), "port": int(j.get("port", 443)),
+                "password": "", "uuid": j.get("id", ""), "udp": True,
+                "alter_id": int(j.get("aid", 0)),
+                "security": j.get("scy", "auto"), "network": j.get("net", "tcp"),
+            }
+            if j.get("tls") == "tls":
+                node["tls"] = True
+                if j.get("sni"):
+                    node["sni"] = j["sni"]
+            if j.get("host"):
+                node["ws_host"] = j["host"]
+            if j.get("path"):
+                node["ws_path"] = j["path"]
+            return node
+        except Exception:
+            return None
+
     m = RE_URI_NODE.match(line)
     if not m:
         return None
     scheme = m.group("scheme")
-    if scheme not in SUPPORTED_SCHEMES and scheme != "ss":
-        return None
-
     auth = m.group("auth")
     host = m.group("host")
     port = int(m.group("port") or 443)
     name = unquote(m.group("name") or host)
     query = parse_qs(m.group("query") or "")
 
+    def _q(k, default=None):
+        v = query.get(k)
+        return v[0] if v else default
+
+    if scheme == "vless":
+        node = {
+            "type": "vless", "name": name, "server": host, "port": port,
+            "password": "", "uuid": auth, "udp": True,
+            "network": _q("type", "tcp"),
+        }
+        sec = _q("security")
+        if sec:
+            node["security"] = sec
+            if sec in ("reality", "tls"):
+                node["tls"] = True
+        fl = _q("flow")
+        if fl: node["flow"] = fl
+        pbk = _q("pbk")
+        if pbk: node["reality_pbk"] = pbk
+        sid = _q("sid")
+        if sid: node["reality_sid"] = sid
+        sni = _q("sni")
+        if sni: node["sni"] = sni
+        fp = _q("fp")
+        if fp: node["client_fingerprint"] = fp
+        if _q("insecure") == "1":
+            node["skip_cert_verify"] = True
+        wsh = _q("host")
+        if wsh: node["ws_host"] = wsh
+        wsp = _q("path")
+        if wsp: node["ws_path"] = wsp
+        gsn = _q("serviceName")
+        if gsn: node["grpc_service_name"] = gsn
+        return node
+
+    if scheme == "tuic":
+        ci = auth.find(":")
+        node = {
+            "type": "tuic", "name": name, "server": host, "port": port,
+            "password": auth[ci+1:] if ci > -1 else "",
+            "uuid": auth[:ci] if ci > -1 else auth,
+            "udp": True,
+        }
+        cong = _q("congestion")
+        if cong: node["congestion"] = cong
+        urm = _q("udp_relay_mode")
+        if urm: node["udp_relay_mode"] = urm
+        alpn = _q("alpn")
+        if alpn: node["alpn"] = alpn
+        sni = _q("sni")
+        if sni: node["sni"] = sni
+        if _q("insecure") == "1":
+            node["skip_cert_verify"] = True
+        return node
+
+    # anytls, trojan, hysteria2, ss
     node = {
-        "type": scheme,
-        "name": name,
-        "server": host,
-        "port": port,
-        "password": auth,
-        "udp": True,
+        "type": scheme, "name": name, "server": host, "port": port,
+        "password": auth, "udp": True,
     }
-    if query.get("sni"):
-        node["sni"] = query["sni"][0]
-    if query.get("insecure", ["0"])[0] == "1" or query.get("allowInsecure", ["0"])[0] == "1":
+    sni = _q("sni")
+    if sni: node["sni"] = sni
+    fp = _q("fp")
+    if fp: node["client_fingerprint"] = fp
+    if _q("insecure") == "1" or _q("allowInsecure") == "1":
         node["skip_cert_verify"] = True
-    if query.get("fp"):
-        node["client_fingerprint"] = query["fp"][0]
-    if query.get("peer"):
-        node["peer"] = query["peer"][0]
-    if query.get("type"):
-        node["network"] = query["type"][0]
+    peer = _q("peer")
+    if peer: node["peer"] = peer
+    typ = _q("type")
+    if typ: node["network"] = typ
     return node
 
 
@@ -127,11 +214,39 @@ def _parse_clash_line(line: str):
         return None
     typ = typ.group(1)
 
+    uuid = extract("uuid")
+    flow = extract("flow")
+    alter_id = extract("alterId")
+    cipher = extract("cipher")
+    network = extract("network")
+    tls = extract_bool("tls")
+    servername = extract("servername")
     server = extract("server")
     port = extract("port")
     password = extract("password")
     sni = extract("sni")
     fp = extract("client-fingerprint")
+
+    # reality / ws / grpc opts from the clash line
+    rpbk = ""; rsid = ""
+    ro = re.search(r'reality-opts\s*:\s*\{[^}]*\}', line)
+    if ro:
+        rm = re.search(r"public-key\s*:\s*([^ ,}]+)", ro.group())
+        if rm: rpbk = rm.group(1)
+        sm = re.search(r"short-id\s*:\s*([^ ,}]+)", ro.group())
+        if sm: rsid = sm.group(1)
+    wp = ""; wh = ""
+    wo = re.search(r'ws-opts\s*:\s*\{[^}]*\}', line)
+    if wo:
+        pm = re.search(r'path\s*:\s*"([^"]*)"', wo.group())
+        if pm: wp = pm.group(1)
+        hm = re.search(r"Host\s*:\s*([^ ,}]+)", wo.group())
+        if hm: wh = hm.group(1)
+    gsn = ""
+    go = re.search(r'grpc-opts\s*:\s*\{[^}]*\}', line)
+    if go:
+        gm = re.search(r"grpc-service-name\s*:\s*([^ ,}]+)", go.group())
+        if gm: gsn = gm.group(1)
 
     node = {
         "type": typ,
@@ -141,6 +256,20 @@ def _parse_clash_line(line: str):
         "password": password,
         "udp": True,
     }
+    if uuid: node["uuid"] = uuid
+    if flow: node["flow"] = flow
+    if alter_id: node["alter_id"] = int(alter_id)
+    if cipher: node["security"] = cipher
+    if network: node["network"] = network
+    if tls: node["tls"] = True
+    if servername: node["sni"] = servername
+    if rpbk:
+        node["reality_pbk"] = rpbk
+        node["reality_sid"] = rsid
+    if wp:
+        node["ws_path"] = wp
+        if wh: node["ws_host"] = wh
+    if gsn: node["grpc_service_name"] = gsn
     if sni:
         node["sni"] = sni
     if extract_bool("skip-cert-verify"):
@@ -220,6 +349,18 @@ def parse_surge_to_ir(text: str):
                 v = v.strip()
                 if k == "password":
                     node["password"] = v
+                elif k == "username":
+                    node["uuid"] = v
+                elif k == "encrypt-method":
+                    node["security"] = v
+                elif k == "congestion-controller":
+                    node["congestion"] = v
+                elif k == "alpn":
+                    node["alpn"] = v
+                elif k == "ws-path":
+                    node["ws_path"] = v
+                elif k == "ws-header" and v.startswith("Host="):
+                    node["ws_host"] = v[5:]
                 elif k == "sni":
                     node["sni"] = v
                 elif k in ("encrypt-method", "method"):
@@ -249,20 +390,54 @@ def ir_to_surge(nodes):
     """Convert IR node dicts to Surge conf [Proxy] lines."""
     lines = []
     for n in nodes:
-        parts = [f'{n["name"]} = {n["type"]}, {n["server"]}, {n["port"]}']
-        if n.get("password"):
-            parts.append(f'password={n["password"]}')
-        if n.get("udp"):
+        if n["type"] == "vmess":
+            parts = [
+                f'{n["name"]} = vmess, {n["server"]}, {n["port"]}',
+                f'username={n.get("uuid", "")}',
+                f'encrypt-method={n.get("security", "auto")}',
+            ]
+            if n.get("network") == "ws":
+                parts.append("ws=true")
+                if n.get("ws_path"):
+                    parts.append(f'ws-path={n["ws_path"]}')
+                if n.get("ws_host"):
+                    parts.append(f'ws-header=Host={n["ws_host"]}')
+            if n.get("tls") or n.get("sni"):
+                parts.append("tls=true")
+                if n.get("sni"):
+                    parts.append(f'sni={n["sni"]}')
+            if n.get("skip_cert_verify"):
+                parts.append("skip-cert-verify=true")
+            parts.append("tfo=true")
+            lines.append(", ".join(parts))
+        elif n["type"] == "tuic":
+            parts = [
+                f'{n["name"]} = tuic, {n["server"]}, {n["port"]}',
+                f'password={n.get("password", "")}',
+            ]
+            if n.get("sni"):
+                parts.append(f'sni={n["sni"]}')
+            if n.get("alpn"):
+                parts.append(f'alpn={n["alpn"]}')
+            if n.get("skip_cert_verify"):
+                parts.append("skip-cert-verify=true")
             parts.append("udp-relay=true")
-        if n.get("sni"):
-            parts.append(f'sni={n["sni"]}')
-        if n.get("skip_cert_verify"):
-            parts.append("skip-cert-verify=true")
-        if n.get("client_fingerprint"):
-            parts.append(f'client-fingerprint={n["client_fingerprint"]}')
-        if n.get("peer"):
-            parts.append(f'tls-hostname={n["peer"]}')
-        lines.append(", ".join(parts))
+            lines.append(", ".join(parts))
+        else:
+            parts = [f'{n["name"]} = {n["type"]}, {n["server"]}, {n["port"]}']
+            if n.get("password"):
+                parts.append(f'password={n["password"]}')
+            if n.get("udp"):
+                parts.append("udp-relay=true")
+            if n.get("sni"):
+                parts.append(f'sni={n["sni"]}')
+            if n.get("skip_cert_verify"):
+                parts.append("skip-cert-verify=true")
+            if n.get("client_fingerprint"):
+                parts.append(f'client-fingerprint={n["client_fingerprint"]}')
+            if n.get("peer"):
+                parts.append(f'tls-hostname={n["peer"]}')
+            lines.append(", ".join(parts))
     return lines
 
 
@@ -270,22 +445,72 @@ def ir_to_clash(nodes):
     """Convert IR node dicts to Clash YAML proxy lines."""
     entries = []
     for n in nodes:
-        entry = (
-            f'  - {{name: "{n["name"]}", type: {n["type"]}, '
-            f'server: {n["server"]}, port: {n["port"]}, '
-            f'password: "{n["password"]}", udp: true'
-        )
-        if n.get("sni"):
-            entry += f', sni: {n["sni"]}'
-        if n.get("skip_cert_verify"):
-            entry += f', skip-cert-verify: true'
-        if n.get("client_fingerprint"):
-            entry += f', client-fingerprint: {n["client_fingerprint"]}'
-        if n.get("peer"):
-            entry += f', peer: {n["peer"]}'
-        if n.get("network"):
-            entry += f', network: {n["network"]}'
-        entries.append(entry + "}")
+        typ = n["type"]
+        if typ == "vless":
+            e = f'  - {{name: "{n["name"]}", type: vless, server: {n["server"]}, port: {n["port"]}, uuid: "{n["uuid"]}", network: {n.get("network", "tcp")}'
+            if n.get("tls"):
+                e += ', tls: true'
+            if n.get("flow"):
+                e += f', flow: {n["flow"]}'
+            if n.get("sni"):
+                e += f', servername: {n["sni"]}'
+            if n.get("client_fingerprint"):
+                e += f', client-fingerprint: {n["client_fingerprint"]}'
+            if n.get("reality_pbk"):
+                e += f', reality-opts: {{public-key: {n["reality_pbk"]}, short-id: {n.get("reality_sid", "")}}}'
+            if n.get("skip_cert_verify"):
+                e += ', skip-cert-verify: true'
+            if n.get("ws_path") or n.get("ws_host"):
+                e += f', ws-opts: {{path: "{n.get("ws_path", "/")}"'
+                if n.get("ws_host"):
+                    e += f', headers: {{Host: {n["ws_host"]}}}'
+                e += '}'
+            e += ', udp: true'
+            entries.append(e + "}")
+        elif typ == "vmess":
+            e = f'  - {{name: "{n["name"]}", type: vmess, server: {n["server"]}, port: {n["port"]}, uuid: "{n.get("uuid", "")}", alterId: {n.get("alter_id", 0)}, cipher: {n.get("security", "auto")}, network: {n.get("network", "tcp")}, udp: true'
+            if n.get("tls"):
+                e += ', tls: true'
+                if n.get("sni"):
+                    e += f', servername: {n["sni"]}'
+            if n.get("ws_path") or n.get("ws_host"):
+                e += f', ws-opts: {{path: "{n.get("ws_path", "/")}"'
+                if n.get("ws_host"):
+                    e += f', headers: {{Host: {n["ws_host"]}}}'
+                e += '}'
+            if n.get("skip_cert_verify"):
+                e += ', skip-cert-verify: true'
+            entries.append(e + "}")
+        elif typ == "tuic":
+            e = f'  - {{name: "{n["name"]}", type: tuic, server: {n["server"]}, port: {n["port"]}, uuid: "{n.get("uuid", "")}", password: "{n.get("password", "")}", udp: true'
+            if n.get("congestion"):
+                e += f', congestion-controller: {n["congestion"]}'
+            if n.get("udp_relay_mode"):
+                e += f', udp-relay-mode: {n["udp_relay_mode"]}'
+            if n.get("alpn"):
+                e += f', alpn: [{n["alpn"]}]'
+            if n.get("sni"):
+                e += f', sni: {n["sni"]}'
+            if n.get("skip_cert_verify"):
+                e += ', skip-cert-verify: true'
+            entries.append(e + "}")
+        else:
+            entry = (
+                f'  - {{name: "{n["name"]}", type: {typ}, '
+                f'server: {n["server"]}, port: {n["port"]}, '
+                f'password: "{n["password"]}", udp: true'
+            )
+            if n.get("sni"):
+                entry += f', sni: {n["sni"]}'
+            if n.get("skip_cert_verify"):
+                entry += ', skip-cert-verify: true'
+            if n.get("client_fingerprint"):
+                entry += f', client-fingerprint: {n["client_fingerprint"]}'
+            if n.get("peer"):
+                entry += f', peer: {n["peer"]}'
+            if n.get("network"):
+                entry += f', network: {n["network"]}'
+            entries.append(entry + "}")
     return "\n".join(entries)
 
 
@@ -393,8 +618,12 @@ def list_templates():
 # ---------------------------------------------------------------------------
 # Surge generation
 # ---------------------------------------------------------------------------
-def extract_surge_nodes(raw_text: str) -> list[str]:
+def extract_surge_nodes(raw_text: str, client: str = None) -> list[str]:
     """Extract Surge-format proxy lines from subscription response."""
+    allowed = CLIENT_PROTOCOLS.get(client) if client else None
+    re_proxy = re.compile(
+        r"^[^#\s].*=\s*(anytls|ss|trojan|vmess|vless|hysteria2?|tuic|http|https|socks5(-tls)?|snell|wireguard|ssh|h2|direct)(\s*,|\s*$)"
+    )
     in_proxy = False
     nodes = []
     for line in raw_text.splitlines():
@@ -406,11 +635,12 @@ def extract_surge_nodes(raw_text: str) -> list[str]:
             continue
         if not in_proxy:
             continue
-        if re.match(
-            r"^[^#\s].*=\s*(anytls|ss|trojan|vmess|vless|hysteria2?|tuic|http|https|socks5(-tls)?|snell|wireguard|ssh|h2|direct)(\s*,|\s*$)",
-            line,
-        ):
-            nodes.append(line)
+        m = re_proxy.match(line)
+        if not m:
+            continue
+        if allowed and m.group(1) not in allowed:
+            continue
+        nodes.append(line)
     return nodes
 
 
@@ -423,13 +653,13 @@ def gen_surge(template_name: str, sub_url: str) -> tuple[bytes, str]:
 
     # Convert detected format -> Surge lines
     if fmt == "surge":
-        nodes = extract_surge_nodes(raw_text)
+        nodes = extract_surge_nodes(raw_text, "Surge")
     elif fmt == "clash":
-        ir_nodes = parse_clash_proxies(raw_text)
+        ir_nodes = filter_by_client(parse_clash_proxies(raw_text), "Surge")
         nodes = ir_to_surge(ir_nodes)
     elif fmt == "base64":
         decoded = base64.b64decode(raw_text.strip()).decode("utf-8")
-        ir_nodes = parse_uri_list(decoded)
+        ir_nodes = filter_by_client(parse_uri_list(decoded), "Surge")
         nodes = ir_to_surge(ir_nodes)
     else:
         raise ValueError("No usable proxy nodes found in subscription")
@@ -490,13 +720,14 @@ def gen_stash(client_dir: str, template_name: str, sub_url: str) -> tuple[bytes,
 
     # Convert detected format -> Clash YAML lines
     if fmt == "clash":
-        clash = extract_stash_clash(raw_text)
+        ir_nodes = filter_by_client(parse_clash_proxies(raw_text), client_dir)
+        clash = ir_to_clash(ir_nodes)
     elif fmt == "base64":
         decoded = base64.b64decode(raw_text.strip()).decode("utf-8")
-        ir_nodes = parse_uri_list(decoded)
+        ir_nodes = filter_by_client(parse_uri_list(decoded), client_dir)
         clash = ir_to_clash(ir_nodes)
     elif fmt == "surge":
-        ir_nodes = parse_surge_to_ir(raw_text)
+        ir_nodes = filter_by_client(parse_surge_to_ir(raw_text), client_dir)
         clash = ir_to_clash(ir_nodes)
     else:
         raise ValueError("No usable proxy nodes found for Stash")
