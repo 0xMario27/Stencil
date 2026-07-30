@@ -64,17 +64,24 @@ function proxyFetch(targetUrl, ua) {
   return fetch(url, { headers }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`); return r.text(); });
 }
 
+const CLIENT_PROTOCOLS={Surge:new Set(["anytls","ss","trojan","vmess","hysteria2","tuic","http","https","socks5","socks5-tls","snell","wireguard","ssh","h2","direct"]),Stash:new Set(["anytls","ss","vmess","vless","trojan","hysteria2","tuic","http","socks5","snell","wireguard","direct"]),ClashMac:new Set(["anytls","ss","vmess","vless","trojan","hysteria2","tuic","http","socks5","snell","wireguard","direct"])};
+function filterByClient(nodes,client){const a=CLIENT_PROTOCOLS[client];return a?nodes.filter(n=>a.has(n.type)):nodes;}
+
 // ──────────────────────────────────────────────
 // GENERATION ENGINE
 // ──────────────────────────────────────────────
-function extractSurgeNodes(text) {
+function extractSurgeNodes(text, client) {
+  const allowed = client ? CLIENT_PROTOCOLS[client] : null;
+  const re = /^[^#\s].*=\s*(anytls|ss|trojan|vmess|vless|hysteria2?|tuic|http|https|socks5(-tls)?|snell|wireguard|ssh|h2|direct)(\s*,|\s*$)/;
   const lines = text.split('\n');
   let inProxy = false, nodes = [];
   for (const line of lines) {
     if (line.startsWith('[Proxy]')) { inProxy = true; continue; }
     if (inProxy && line.startsWith('[')) { inProxy = false; continue; }
     if (!inProxy) continue;
-    if (/^[^#\s].*=\s*(anytls|ss|trojan|vmess|vless|hysteria2?|tuic|http|https|socks5(-tls)?|snell|wireguard|ssh|h2|direct)(\s*,|\s*$)/.test(line)) nodes.push(line);
+    const m = line.match(re);
+    if (!m) continue;
+    if (!allowed || allowed.has(m[1])) nodes.push(line);
   }
   return nodes;
 }
@@ -88,21 +95,58 @@ function urlDecode(str) {
 }
 
 function parseUriNode(line) {
-  const m = line.trim().match(/^(anytls|trojan|hysteria2?|ss|vmess|vless|tuic):\/\/([^@]+)@([^:/?#]+)(?::(\d+))?(\/[^?#]*)?(?:\?([^#]*))?(?:#(.*))?$/);
+  line = line.trim();
+  if (line.startsWith('vmess://')) {
+    try {
+      const b64 = line.slice('vmess://'.length);
+      const padded = b64 + '='.repeat((4 - b64.length % 4) % 4);
+      const json = JSON.parse(atob(padded));
+      const node = { type: 'vmess', name: json.ps || json.add,
+        server: json.add, port: parseInt(json.port) || 443,
+        password: '', uuid: json.id || '', udp: true,
+        alter_id: parseInt(json.aid) || 0,
+        security: json.scy || 'auto', network: json.net || 'tcp' };
+      if (json.tls === 'tls') { node.tls = true; if (json.sni) node.sni = json.sni; }
+      if (json.host) node.ws_host = json.host;
+      if (json.path) node.ws_path = json.path;
+      return node;
+    } catch(e) { return null; }
+  }
+  const m = line.match(/^(anytls|trojan|hysteria2?|ss|vless|tuic):\/\/([^@]+)@([^:/?#]+)(?::(\d+))?(\/[^?#]*)?(?:\?([^#]*))?(?:#(.*))?$/);
   if (!m) return null;
-
   const [, scheme, auth, host, port, , queryStr, name] = m;
-  if (!['anytls','trojan','hysteria','hysteria2'].includes(scheme)) return null;
-
   const params = new URLSearchParams(queryStr || '');
-  const node = {
-    type: scheme,
-    name: urlDecode(name || host),
-    server: host,
-    port: parseInt(port || '443'),
-    password: auth,
-    udp: true
-  };
+  if (scheme === 'vless') {
+    const node = { type: 'vless', name: urlDecode(name || host),
+      server: host, port: parseInt(port || '443'), password: '', uuid: auth, udp: true,
+      network: params.get('type') || 'tcp' };
+    const sec = params.get('security'); if (sec) { node.security = sec; if (sec === 'reality' || sec === 'tls') node.tls = true; }
+    const flow = params.get('flow'); if (flow) node.flow = flow;
+    const pbk = params.get('pbk'); if (pbk) node.reality_pbk = pbk;
+    const sid = params.get('sid'); if (sid) node.reality_sid = sid;
+    const sni = params.get('sni'); if (sni) node.sni = sni;
+    const fp = params.get('fp'); if (fp) node.client_fingerprint = fp;
+    const insec = params.get('insecure'); if (insec === '1') node.skip_cert_verify = true;
+    const wsh = params.get('host'); if (wsh) node.ws_host = wsh;
+    const wsp = params.get('path'); if (wsp) node.ws_path = wsp;
+    const gsn = params.get('serviceName'); if (gsn) node.grpc_service_name = gsn;
+    return node;
+  }
+  if (scheme === 'tuic') {
+    const colon = auth.indexOf(':');
+    const node = { type: 'tuic', name: urlDecode(name || host),
+      server: host, port: parseInt(port || '443'),
+      password: colon > -1 ? auth.slice(colon + 1) : '',
+      uuid: colon > -1 ? auth.slice(0, colon) : auth, udp: true };
+    const cong = params.get('congestion'); if (cong) node.congestion = cong;
+    const urm = params.get('udp_relay_mode'); if (urm) node.udp_relay_mode = urm;
+    const alpn = params.get('alpn'); if (alpn) node.alpn = alpn;
+    const sni = params.get('sni'); if (sni) node.sni = sni;
+    if (params.get('insecure') === '1') node.skip_cert_verify = true;
+    return node;
+  }
+  const node = { type: scheme, name: urlDecode(name || host),
+    server: host, port: parseInt(port || '443'), password: auth, udp: true };
   const sni = params.get('sni'); if (sni) node.sni = sni;
   const fp = params.get('fp'); if (fp) node.client_fingerprint = fp;
   const insec = params.get('insecure') || params.get('allowInsecure');
@@ -156,6 +200,10 @@ function parseClashLine(line) {
                line.match(/[{,]\s*type\s*:\s*"?([^",}]+)"?/));
   if (!typ) return null;
 
+   const uid=extract('uuid'),fl=extract('flow'),aid=extract('alterId'),cph=extract('cipher'),nt=extract('network'),tls=extractBool('tls'),sv=extract('servername');
+  let rpbk='',rsid='';const ro=line.match(/reality-opts\s*:\s*\{[^}]*\}/);if(ro){const rm=ro[0].match(/public-key\s*:\s*([^ ,}]+)/);if(rm)rpbk=rm[1];const sm=ro[0].match(/short-id\s*:\s*([^ ,}]+)/);if(sm)rsid=sm[1];}
+  let wp='',wh='';const wo=line.match(/ws-opts\s*:\s*\{[^}]*\}/);if(wo){const pm=wo[0].match(/path\s*:\s*"([^"]*)"/);if(pm)wp=pm[1];const hm=wo[0].match(/Host\s*:\s*([^ ,}]+)/);if(hm)wh=hm[1];}
+  let gsn='';const go=line.match(/grpc-opts\s*:\s*\{[^}]*\}/);if(go){const gm=go[0].match(/grpc-service-name\s*:\s*([^ ,}]+)/);if(gm)gsn=gm[1];}
   const node = {
     type: typ[1],
     name: name[1],
@@ -164,6 +212,7 @@ function parseClashLine(line) {
     password: extract('password'),
     udp: true
   };
+  if(uid)node.uuid=uid;if(fl)node.flow=fl;if(aid)node.alter_id=parseInt(aid);if(cph)node.security=cph;if(nt)node.network=nt;if(tls)node.tls=true;if(sv)node.sni=sv;if(rpbk){node.reality_pbk=rpbk;node.reality_sid=rsid;}if(wp){node.ws_path=wp;if(wh)node.ws_host=wh;}if(gsn)node.grpc_service_name=gsn;
   const sni = extract('sni'); if (sni) node.sni = sni;
   if (extractBool('skip-cert-verify')) node.skip_cert_verify = true;
   const fp = extract('client-fingerprint'); if (fp) node.client_fingerprint = fp;
@@ -207,6 +256,12 @@ function parseSurgeToIR(text) {
         if (eq2 > -1) {
           const k = p.slice(0, eq2), v = p.slice(eq2 + 1);
           if (k === 'password') node.password = v;
+          else if (k === 'username') node.uuid = v;
+          else if (k === 'encrypt-method') node.security = v;
+          else if (k === 'congestion-controller') node.congestion = v;
+          else if (k === 'alpn') node.alpn = v;
+          else if (k === 'ws-path') node.ws_path = v;
+          else if (k === 'ws-header' && v.startsWith('Host=')) node.ws_host = v.slice(5);
           else if (k === 'sni') node.sni = v;
           else if (k === 'tls-hostname') node.sni = v;
           else if (k === 'ws' && v === 'true') node.network = 'ws';
@@ -221,6 +276,22 @@ function parseSurgeToIR(text) {
 
 function irToSurge(nodes) {
   return nodes.map(n => {
+    if (n.type === 'vmess') {
+      const parts = [`${n.name} = vmess, ${n.server}, ${n.port}`, `username=${n.uuid}`, `encrypt-method=${n.security || 'auto'}`];
+      if (n.network === 'ws') { parts.push('ws=true'); if (n.ws_path) parts.push(`ws-path=${n.ws_path}`); if (n.ws_host) parts.push(`ws-header=Host=${n.ws_host}`); }
+      if (n.tls || n.sni) { parts.push('tls=true'); if (n.sni) parts.push(`sni=${n.sni}`); }
+      if (n.skip_cert_verify) parts.push('skip-cert-verify=true');
+      parts.push('tfo=true');
+      return parts.join(', ');
+    }
+    if (n.type === 'tuic') {
+      const parts = [`${n.name} = tuic, ${n.server}, ${n.port}`, `password=${n.password}`];
+      if (n.sni) parts.push(`sni=${n.sni}`);
+      if (n.alpn) parts.push(`alpn=${n.alpn}`);
+      if (n.skip_cert_verify) parts.push('skip-cert-verify=true');
+      parts.push('udp-relay=true');
+      return parts.join(', ');
+    }
     const parts = [`${n.name} = ${n.type}, ${n.server}, ${n.port}`];
     if (n.password) parts.push(`password=${n.password}`);
     if (n.udp) parts.push('udp-relay=true');
@@ -234,6 +305,34 @@ function irToSurge(nodes) {
 
 function irToClash(nodes) {
   return nodes.map(n => {
+    if (n.type === 'vless') {
+      let e = `  - {name: "${n.name}", type: vless, server: ${n.server}, port: ${n.port}, uuid: "${n.uuid}", network: ${n.network || 'tcp'}`;
+      if (n.tls) e += ', tls: true';
+      if (n.flow) e += `, flow: ${n.flow}`;
+      if (n.sni) e += `, servername: ${n.sni}`;
+      if (n.client_fingerprint) e += `, client-fingerprint: ${n.client_fingerprint}`;
+      if (n.reality_pbk) e += `, reality-opts: {public-key: ${n.reality_pbk}, short-id: ${n.reality_sid || ''}}`;
+      if (n.skip_cert_verify) e += ', skip-cert-verify: true';
+      if (n.ws_path || n.ws_host) e += `, ws-opts: {path: "${n.ws_path || '/'}"${n.ws_host ? `, headers: {Host: ${n.ws_host}}` : ''}}`;
+      e += ', udp: true';
+      return e + '}';
+    }
+    if (n.type === 'vmess') {
+      let e = `  - {name: "${n.name}", type: vmess, server: ${n.server}, port: ${n.port}, uuid: "${n.uuid}", alterId: ${n.alter_id || 0}, cipher: ${n.security || 'auto'}, network: ${n.network || 'tcp'}, udp: true`;
+      if (n.tls) { e += ', tls: true'; if (n.sni) e += `, servername: ${n.sni}`; }
+      if (n.ws_path || n.ws_host) e += `, ws-opts: {path: "${n.ws_path || '/'}"${n.ws_host ? `, headers: {Host: ${n.ws_host}}` : ''}}`;
+      if (n.skip_cert_verify) e += ', skip-cert-verify: true';
+      return e + '}';
+    }
+    if (n.type === 'tuic') {
+      let e = `  - {name: "${n.name}", type: tuic, server: ${n.server}, port: ${n.port}, uuid: "${n.uuid}", password: "${n.password}", udp: true`;
+      if (n.congestion) e += `, congestion-controller: ${n.congestion}`;
+      if (n.udp_relay_mode) e += `, udp-relay-mode: ${n.udp_relay_mode}`;
+      if (n.alpn) e += `, alpn: [${n.alpn}]`;
+      if (n.sni) e += `, sni: ${n.sni}`;
+      if (n.skip_cert_verify) e += ', skip-cert-verify: true';
+      return e + '}';
+    }
     let entry = `  - {name: "${n.name}", type: ${n.type}, server: ${n.server}, port: ${n.port}, password: "${n.password}", udp: true`;
     if (n.sni) entry += `, sni: ${n.sni}`;
     if (n.skip_cert_verify) entry += ', skip-cert-verify: true';
@@ -321,12 +420,13 @@ function extractStashClash(text) {
   return out.join('\n');
 }
 
-function genSurge(templateText, subTextOrNodes) {
+function genSurge(templateText, subTextOrNodes, client) {
   let nodes;
   if (Array.isArray(subTextOrNodes)) {
     nodes = irToSurge(subTextOrNodes);
+    if (!nodes.length) throw new Error('No Surge proxy nodes found in subscription');
   } else {
-    nodes = extractSurgeNodes(subTextOrNodes);
+    nodes = extractSurgeNodes(subTextOrNodes, client);
     if (!nodes.length) throw new Error('No Surge proxy nodes found in subscription');
   }
   const out = []; let inProxy = false, done = false;
@@ -344,12 +444,16 @@ function genSurge(templateText, subTextOrNodes) {
 function genStash(templateText, subTextOrClash) {
   let clash;
   if (typeof subTextOrClash === 'string') {
-    clash = extractStashClash(subTextOrClash);
-    if (!clash.trim()) {
-      try {
-        const decoded = atob(subTextOrClash.replace(/\s/g, ''));
-        if (decoded.includes('://')) clash = irToClash(parseUriList(decoded));
-      } catch(e) {}
+    if (/^\s*-\s*\{/.test(subTextOrClash.trim())) {
+      clash = subTextOrClash;
+    } else {
+      clash = extractStashClash(subTextOrClash);
+      if (!clash.trim()) {
+        try {
+          const decoded = atob(subTextOrClash.replace(/\s/g, ''));
+          if (decoded.includes('://')) clash = irToClash(parseUriList(decoded));
+        } catch(e) {}
+      }
     }
   } else {
     clash = subTextOrClash;
@@ -536,39 +640,40 @@ async function doGenerate() {
     const tplText = tplCache[tplKey];
 
     // Fetch subscription via universal smart fetcher
-    let subText;
+    let subText, surgeInput;
     if (state.client === 'Surge') {
       const sub = await fetchSub(state.subUrl);
-      let nodes;
       if (sub.format === 'surge') {
-        subText = sub.text;
+        surgeInput = sub.text;
       } else if (sub.format === 'clash') {
-        nodes = parseClashProxies(sub.text);
-        subText = irToSurge(nodes).join('\n');
+        surgeInput = filterByClient(parseClashProxies(sub.text), state.client);
       } else if (sub.format === 'base64') {
         const decoded = atob(sub.text.replace(/\s/g, ''));
-        nodes = parseUriList(decoded);
-        subText = irToSurge(nodes).join('\n');
+        surgeInput = filterByClient(parseUriList(decoded), state.client);
       } else {
         throw new Error('No usable nodes found');
       }
     } else {
       const sub = await fetchSub(state.subUrl);
+      let irNodes;
       if (sub.format === 'clash') {
-        subText = sub.text;
+        irNodes = parseClashProxies(sub.text);
       } else if (sub.format === 'base64') {
-        subText = sub.text;
+        const decoded = atob(sub.text.replace(/\s/g, ''));
+        irNodes = parseUriList(decoded);
       } else if (sub.format === 'surge') {
-        const ir = parseSurgeToIR(sub.text);
-        subText = irToClash(ir);
+        irNodes = parseSurgeToIR(sub.text);
       } else {
         throw new Error('No usable nodes found');
       }
+      irNodes = filterByClient(irNodes, state.client);
+      if (!irNodes.length) throw new Error('No usable proxy nodes found for Stash');
+      subText = irToClash(irNodes);
     }
 
     // Generate
     let result;
-    if (state.client === 'Surge') result = genSurge(tplText, subText);
+    if (state.client === 'Surge') result = genSurge(tplText, surgeInput, state.client);
     else result = genStash(tplText, subText);
 
     state.blob = new Blob([result], { type: 'application/octet-stream' });
