@@ -59,7 +59,7 @@ gen_surge() {
   case "$fmt" in
     surge)
       awk '/^\[Proxy\]/{f=1;next} /^\[/{f=0} f' "$raw" \
-       | grep -aE '^[^#[:space:]].*=[[:space:]]*(anytls|ss|trojan|vmess|vless|hysteria2?|tuic|http|https|socks5(-tls)?|snell|wireguard|ssh|h2|direct)([[:space:]]*,|[[:space:]]*$)' \
+       | grep -aE '^[^#[:space:]].*=[[:space:]]*(anytls|ss|trojan|vmess|hysteria2?|tuic|http|https|socks5(-tls)?|snell|wireguard|ssh|h2|direct)([[:space:]]*,|[[:space:]]*$)' \
        > "$nodes" || true
       ;;
     clash)
@@ -334,7 +334,7 @@ _count_nodes() {
   case "$fmt" in
     surge)
       c="$(awk '/^\[Proxy\]/{f=1;next} /^\[/{f=0} f' "$f" \
-        | grep -acE '^[^#[:space:]].*=[[:space:]]*(anytls|ss|trojan|vmess|vless|hysteria2?|tuic|http|https|socks5(-tls)?|snell|wireguard|ssh|h2|direct)([[:space:]]*,|[[:space:]]*$)' 2>/dev/null || echo 0)"
+        | grep -acE '^[^#[:space:]].*=[[:space:]]*(anytls|ss|trojan|vmess|hysteria2?|tuic|http|https|socks5(-tls)?|snell|wireguard|ssh|h2|direct)([[:space:]]*,|[[:space:]]*$)' 2>/dev/null || echo 0)"
       ;;
     clash)
       c="$(awk '/^proxies:/{f=1;next} /^[a-zA-Z]/{f=0} f' "$f" \
