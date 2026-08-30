@@ -346,7 +346,7 @@ function irToClash(nodes) {
 function detectFormat(text) {
   if (!text || !text.trim()) return 'error';
   if (/\[Proxy\]|\[General\]/.test(text)) return 'surge';
-  if (/^\s*proxies:/.test(text)) return 'clash';
+  if (/^\s*proxies:/m.test(text)) return 'clash';
   try {
     const clean = text.replace(/\s/g, '');
     const decoded = atob(clean);
